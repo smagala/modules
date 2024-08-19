@@ -4,8 +4,8 @@
 // BBDUK_TRIM_2PASS: double primer trim on unaligned FASTQs
 //
 
-include { BBMAP_BBDUK as BBDUK_TRIM_1 } from "../../../modules/nf-core/bbmap/bbduk/main"
-include { BBMAP_BBDUK as BBDUK_TRIM_2 } from "../../../modules/nf-core/bbmap/bbduk/main"
+include { BBMAP_BBDUK as BBDUK_TRIM_1 } from "../../../modules/ph-core/bbmap/bbduk/main"
+include { BBMAP_BBDUK as BBDUK_TRIM_2 } from "../../../modules/ph-core/bbmap/bbduk/main"
 
 workflow BBDUK_TRIM_2PASS {
 
