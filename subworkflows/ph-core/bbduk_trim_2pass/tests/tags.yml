@@ -1,0 +1,2 @@
+subworkflows/bbduk_trim_2pass:
+  - subworkflows/ph-core/bbduk_trim_2pass/**
