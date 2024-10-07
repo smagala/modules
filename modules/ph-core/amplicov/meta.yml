@@ -1,0 +1,53 @@
+name: amplicov
+description: Script to generate amplicon coverage
+keywords:
+  - amplicon
+  - genome
+  - coverage
+tools:
+  - amplicov:
+      description: |
+        Will generate information around amplicon coverage given a bam file and amplicon information provided in a bedpe/bed6 format
+      homepage: https://pypi.org/project/amplicov/0.3.3/
+      documentation: https://github.com/chienchi/amplicon_coverage_plot
+      doi: 10.1093/bioinformatics/btp352 **
+      license: ["MIT"]
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - bam:
+      type: file
+      description: BAM/CRAM/SAM file(s)
+      pattern: "*.{bam,cram,sam}"
+  - bedpe:
+      type: file
+      description: |
+        file format that concisely describe disjoint genome features, such as structural variations or paired-end sequence alignments
+      pattern: "*.{bedpe,bed6}"
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - coverage:
+      type: file
+      description: amplicon coverage information in tsv format
+      pattern: "*.{txt}"
+  - coverage_html:
+      type: file
+      description: amplicon coverage information in html format
+      pattern: "*.{html}"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@chienchi"
+  - "@pvanheus"
+maintainers:
+  - "@chienchi"
+  - "@pvanheus"

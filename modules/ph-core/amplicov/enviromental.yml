@@ -1,0 +1,7 @@
+name: amplicov
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  -bioconda::amplicon_coverage_plot=0.3.3
