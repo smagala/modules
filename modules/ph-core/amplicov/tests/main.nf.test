@@ -1,0 +1,34 @@
+nextflow_process {
+
+    name "Test Process AMPLICOV"
+    script "../main.nf"
+    process "AMPLICOV"
+
+    test("Test Process AMPLICOV") {
+        config "./nextflow.config"
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test', single_end:false ], // meta map
+                    file("https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/genomics/sarscov2/illumina/bam/test.paired_end.bam", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id:'test', single_end:false ], // meta map
+                    "SARS-CoV-2"])
+                input[2] = Channel.of([
+                    file('https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/genomics/sarscov2/genome/bed/test.bedpe', checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.trace.tasks().size() == 1
+
+        }
+
+    }
+
+}
