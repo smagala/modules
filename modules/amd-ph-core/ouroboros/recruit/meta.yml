@@ -2,22 +2,20 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
 name: "ouroboros_recruit"
 description: |
-  Run one whole recruit round — MATCH, SORT, per-gene ALIGN and REFINE, then the convergence close — in
-  a single process, driven by a topic feedback loop.
-  The round state arrives as a TUPLE that Nextflow stages into the instate/ layout — there is no
-  seeding process, because a task whose whole job is `mkdir` and `cp` is pure overhead. Round 1 passes
-  empty lists for gene_refs and jsons, so those directories simply do not exist, and every read of them
-  is guarded. gene_refs/ and jsons/ are emitted as DIRECTORIES rather than globs, because a barren round
-  legitimately writes nothing into them and a `/*` output glob would fail on a missing match.
-  The next state is emitted both as a named output and onto the 'gather' topic. The topic has to live
-  here — only a process can publish to a topic — but the seeding and the termination gate belong to the
-  calling subworkflow, so this module can be run for a single round, or tested, without a loop.
-  The round is one process rather than five on purpose. An earlier decomposition into discrete
-  MATCH/SORT/ALIGN/REFINE processes was clean on paper and lost badly on the cloud, because the round's
-  own compute is seconds and per-step task overhead dominated it.
+  Run the entire recruit/refine loop for one sample — MATCH, SORT, per-gene ALIGN and REFINE, and the
+  convergence close, repeated until the reference stops moving, nothing is left to recruit, or
+  max_rounds is reached — in a single task.
+  The loop lives in the task because every in-workflow alternative breaks with more than one item in
+  flight: `until` closes the whole channel instead of dropping the matching item, so the first sample to
+  converge silently truncates the rest; `filter` deadlocks because the topic never closes; and
+  `.recurse()` is value-channel only. Looping here makes per-sample and per-bin independence an ordinary
+  Nextflow scatter, with no state written to disk between rounds.
+  Round state lives in the task's own working directory: REFS and READS advance each iteration and the
+  cumulative per-gene JSONs accumulate in place, so nothing is copied between rounds.
+  This task is also the only place that knows the round ORDER, which is why it writes the terminal
+  reports itself — a downstream `R*.sort_stats.txt` glob sorts lexically and would place R10 before R2.
   Settings arrive as a single Map. Twenty-one positional value inputs would mis-bind silently on any
-  reorder, so the keys are validated in the script block and a missing one fails with its name rather
-  than interpolating "null" into a shell command.
+  reorder, so the keys are validated in the script block and a missing one fails with its name.
 keywords:
   - recruitment
   - iterative-refinement
@@ -77,28 +75,14 @@ input:
         description: |
           Groovy Map containing sample information
           e.g. `[ id:'sample1' ]`
+    - reads:
+        type: file
+        description: Deflated read patterns for the sample; the round-1 query set
+        pattern: "*.{fa,fasta}"
     - refs:
         type: file
-        description: Combined reference matched this round; staged as instate/refs.fasta
+        description: Panel reference set. Its record IDs are the bin labels and the reporting frame.
         pattern: "*.{fa,fasta}"
-    - carry:
-        type: file
-        description: Reads still to match — the prior round's nomatch, or the initial query; staged as instate/carry.fa
-        pattern: "*.{fa,fasta}"
-    - gene_refs:
-        type: directory
-        description: Prior per-gene refs, used for reference selection. Pass [] on round 1 (Optional)
-        pattern: "gene_refs"
-    - jsons:
-        type: directory
-        description: CUMULATIVE per-gene alignment JSONs across all prior rounds. Pass [] on round 1 (Optional)
-        pattern: "jsons"
-    - round:
-        type: integer
-        description: Round number, 1-based
-    - done:
-        type: integer
-        description: Convergence flag from the prior round; the `until` gate reads it, this process does not
   - recruit_opts:
       type: map
       description: |
@@ -107,89 +91,59 @@ input:
         min_recruit_patterns, sort_groups, ban_groups, secondary_min_depth, secondary_min_frac, min_ca,
         min_fa, skip_elongation, gather_position_bias, gather_del_type, min_column_coverage,
         gather_ref_floor. Validated in the script block. (Mandatory)
+  - max_rounds:
+      type: integer
+      description: Safety cap on rounds; convergence normally stops the loop first (Mandatory)
 
 output:
-  - state:
-      - meta:
-          type: map
-          description: Groovy Map containing sample information
-      - "outstate/refs.fasta":
-          type: file
-          description: Reference for the next round
-          pattern: "outstate/refs.fasta"
-      - "outstate/carry.fa":
-          type: file
-          description: Reads carried into the next round; empty when the loop has converged
-          pattern: "outstate/carry.fa"
-      - "outstate/gene_refs":
-          type: directory
-          description: Per-gene refs for the next round; may be empty after a barren round
-          pattern: "outstate/gene_refs"
-      - "outstate/jsons":
-          type: directory
-          description: Cumulative per-gene alignment JSONs, priors plus this round's
-          pattern: "outstate/jsons"
-      - RN:
-          type: integer
-          description: Next round number
-      - DONE:
-          type: integer
-          description: 1 when the reference stopped moving or nothing is left to recruit
   - gene_refs:
       - meta:
           type: map
           description: Groovy Map containing sample information
       - "R*-*.ref":
           type: file
-          description: Per-gene refined references from this round (Optional — a barren round emits none)
+          description: Per-gene refined references from every round; the highest round per gene is the one assembly consumes (Optional)
           pattern: "R*-*.ref"
-      - round:
-          type: integer
-          description: Round number
   - sorted:
       - meta:
           type: map
           description: Groovy Map containing sample information
       - "R*-*.fa":
           type: file
-          description: Reads binned per gene this round (Optional — a barren round emits none)
+          description: Reads binned per gene, from every round (Optional)
           pattern: "R*-*.fa"
-      - round:
-          type: integer
-          description: Round number
-  - raw_nomatch:
+  - nomatch:
       - meta:
           type: map
           description: Groovy Map containing sample information
-      - "R*.nomatch":
+      - "nomatch.fa":
           type: file
-          description: Reads not recruited this round; the last round's becomes nomatch.fa
-          pattern: "R*.nomatch"
-      - round:
-          type: integer
-          description: Round number
+          description: Reads never recruited. Every depth this pipeline reports is RECRUITED depth, so this is what distinguishes "not recruited" from "not sequenced".
+          pattern: "nomatch.fa"
   - chimeric:
       - meta:
           type: map
           description: Groovy Map containing sample information
-      - "R*.chim":
+      - "chimeric.fa":
           type: file
-          description: Reads dropped as chimeric; round 1's becomes chimeric.fa
-          pattern: "R*.chim"
-      - round:
-          type: integer
-          description: Round number
-  - stats:
+          description: Round-1 reads dropped as chimeric
+          pattern: "chimeric.fa"
+  - sort_stats:
       - meta:
           type: map
           description: Groovy Map containing sample information
-      - "R*.sort_stats.txt":
+      - "sorted_read_stats.txt":
           type: file
-          description: Per-gene read-pattern and read counts for this round
-          pattern: "R*.sort_stats.txt"
-      - round:
-          type: integer
-          description: Round number
+          description: Per-gene read-pattern and read counts, every round, concatenated in round order
+          pattern: "sorted_read_stats.txt"
+  - timings:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "round_timings.tsv":
+          type: file
+          description: Per-round seconds, convergence flag, and the reason the loop stopped
+          pattern: "round_timings.tsv"
   - versions:
       - "versions.yml":
           type: file

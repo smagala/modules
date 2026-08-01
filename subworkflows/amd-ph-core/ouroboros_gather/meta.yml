@@ -3,13 +3,11 @@
 name: "ouroboros_gather"
 description: |
   The recruit and reference-refinement half of the pipeline, plus the boundary it hands to assembly.
-  The loop is a TOPIC FEEDBACK loop rather than .recurse(). The round-1 state is a plain channel map,
-  not a task: Nextflow's input staging builds the instate/ layout the recruit module expects, so a
-  seeding process would only have run `mkdir` and `cp`. OUROBOROS_RECRUIT publishes each next state onto
-  the 'gather' topic, which is mixed with the seed, and an `until` gate drops the converged item to stop
-  the loop. Because the loop mechanics live in the topic, there is no per-round join or branch here.
-  The topic name lives in the module because only a process can publish to a topic; the seeding and the
-  termination gate live here, so the module can be run for one round, or tested, without a loop.
+  The recruit loop turns INSIDE OUROBOROS_RECRUIT, one task per sample, so this subworkflow holds no
+  loop mechanics at all — no topic, no `until`, no `.recurse()`. Samples are an ordinary scatter and
+  converge independently. That is a correctness requirement: `until` closes the channel rather than
+  dropping the matching item, so a topic feedback loop truncates every other sample the moment the
+  first converges, and it does so silently.
   The subworkflow also shapes the gather-to-assemble boundary: per gene, the sorted reads across all
   rounds, the HIGHEST-round refined reference, and the deflation index. That is the contract a single
   assemble run consumes, which is what allows assembly to be dispatched one bin at a time.
@@ -23,7 +21,6 @@ keywords:
   - binning
 components:
   - ouroboros/recruit
-  - ouroboros/gatherreports
 
 input:
   - ch_reads_refs:
@@ -64,12 +61,30 @@ output:
         frame for reference-relative variants.
         Structure: [ val(meta), path(panel_ref_set) ]
       pattern: "*.{fa,fasta}"
-  - reports:
+  - chimeric:
       type: file
       description: |
-        Chimeric reads, unrecruited reads, and per-gene read counts across all rounds.
-        Structure: [ val(meta), path(chimeric), path(nomatch), path(sorted_read_stats) ]
-      pattern: "*.{fa,txt}"
+        Round-1 reads dropped as chimeric.
+        Structure: [ val(meta), path(chimeric.fa) ]
+      pattern: "chimeric.fa"
+  - nomatch:
+      type: file
+      description: |
+        Reads never recruited — the unrecruited fraction behind every depth this pipeline reports.
+        Structure: [ val(meta), path(nomatch.fa) ]
+      pattern: "nomatch.fa"
+  - sort_stats:
+      type: file
+      description: |
+        Per-gene read counts for every round, concatenated in round order.
+        Structure: [ val(meta), path(sorted_read_stats.txt) ]
+      pattern: "sorted_read_stats.txt"
+  - timings:
+      type: file
+      description: |
+        Per-round seconds, convergence flag, and why the loop stopped.
+        Structure: [ val(meta), path(round_timings.tsv) ]
+      pattern: "round_timings.tsv"
   - versions:
       type: file
       description: |
