@@ -6,6 +6,7 @@ process IRMA {
 
     input:
     tuple val(meta), path(reads)
+    val irma_module
 
     output:
     tuple val(meta), path("${meta.id}/*")    , emit: results
@@ -18,11 +19,9 @@ process IRMA {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def module = "${params.irma_module}"
-
     """
     IRMA \\
-        $module \\
+        $irma_module \\
         $reads \\
         ${meta.id} \\
         ${args}
@@ -36,7 +35,6 @@ process IRMA {
     stub:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def module = "${params.irma_module}"
 
     """
     touch ${prefix}

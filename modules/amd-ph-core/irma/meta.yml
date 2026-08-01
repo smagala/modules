@@ -1,55 +1,62 @@
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
 name: "irma"
-## TODO nf-core: Add a description of the module and list keywords
-description: write your description here
+description: |
+  Run IRMA, the Iterative Refinement Meta-Assembler, for assembly, variant calling, and phasing of
+  highly variable RNA viruses.
+  IRMA selects its behaviour from a named module (FLU, EBOLA, RSV, CoV, and their platform variants),
+  which is a mandatory positional argument to the tool. It is taken here as a value input rather than
+  read from a pipeline parameter, so the module does not depend on what the calling pipeline happens to
+  name its params. Pipelines are expected to supply it from a Nextflow profile.
 keywords:
-  - sort
-  - example
-  - genomics
+  - assembly
+  - variant-calling
+  - phasing
+  - rna-virus
+  - influenza
 tools:
   - "irma":
-      ## TODO nf-core: Add a description and other details for the software below
       description: "IRMA: Iterative Refinement Meta-Assembler for the robust assembly, variant calling, and phasing of highly variable RNA viruses."
-      homepage: "None"
-      documentation: "None"
-      tool_dev_url: "None"
-      doi: ""
-      licence: ['GPL v3 or later (GPL v3+)']
+      homepage: "https://wonder.cdc.gov/amd/flu/irma/"
+      documentation: "https://wonder.cdc.gov/amd/flu/irma/"
+      licence: ["GPL v3 or later (GPL v3+)"]
+      args_id: "$args"
 
-## TODO nf-core: Add a description of all of the variables used as input
 input:
-  # Only when we have meta
-  - meta:
-      type: map
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1', single_end:false ]`
+    - reads:
+        type: file
+        description: Input reads, single-end or paired-end
+        pattern: "*.{fastq,fq,fastq.gz,fq.gz}"
+  - irma_module:
+      type: string
       description: |
-        Groovy Map containing sample information
-        e.g. `[ id:'sample1', single_end:false ]`
-  
-  ## TODO nf-core: Delete / customise this example input
-  - bam:
-      type: file
-      description: Sorted BAM/CRAM/SAM file
-      pattern: "*.{bam,cram,sam}"
+        IRMA module name, a mandatory positional argument selecting the assay and platform behaviour
+        (e.g. FLU, FLU-minion, EBOLA, RSV, CoV). (Mandatory)
 
-## TODO nf-core: Add a description of all of the variables used as output
 output:
-  #Only when we have meta
-  - meta:
-      type: map
-      description: |
-        Groovy Map containing sample information
-        e.g. `[ id:'sample1', single_end:false ]`
-  
+  - results:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*":
+          type: directory
+          description: IRMA output directory for the sample
+          pattern: "*"
+  - amended_consensus:
+      - "amended_consensus/*.fa":
+          type: file
+          description: Per-segment amended consensus sequences (Optional)
+          pattern: "amended_consensus/*.fa"
   - versions:
-      type: file
-      description: File containing software versions
-      pattern: "versions.yml"
-  ## TODO nf-core: Delete / customise this example output
-  - bam:
-      type: file
-      description: Sorted BAM/CRAM/SAM file
-      pattern: "*.{bam,cram,sam}"
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
 
 authors:
   - "@smagala"
