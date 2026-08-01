@@ -1,0 +1,206 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "ouroboros"
+description: |
+  The complete recruit, refine, polish and call core for a set of samples.
+  Three stages, each shaped by what it has to compare: OUROBOROS_GATHER runs per SAMPLE, recruiting
+  reads into bins and refining a reference for each; OUROBOROS_ASSEMBLE_STAGE runs per BIN, polishing
+  and calling each independently; OUROBOROS_GENOMEREPORT returns to per SAMPLE, because a contaminant
+  is only identifiable relative to the sample's other genomes.
+  The middle stage is a plain scatter — gather emits one row per bin and each becomes its own task that
+  converges on its own schedule. The genomes screen waits on all of a sample's bins via groupTuple,
+  which is safe here because these channels close normally, unlike inside a loop.
+  Both iterative loops turn inside their tasks, so nothing in this subworkflow iterates and no state is
+  written to disk between stages: the gather-to-assemble boundary travels as a channel.
+keywords:
+  - assembly
+  - recruitment
+  - iterative-refinement
+  - variant-calling
+  - contamination
+components:
+  - ouroboros_gather
+  - ouroboros_assemble_stage
+  - ouroboros/genomereport
+
+input:
+  - ch_reads_refs:
+      type: file
+      description: |
+        Deflated reads and the panel reference set per sample.
+        Structure: [ val(meta), path(reads_fasta), path(ref_set) ]
+      pattern: "*.{fa,fasta}"
+  - ch_deflation:
+      type: file
+      description: |
+        Deflation index per sample, used to recover true per-read depth.
+        Structure: [ val(meta), path(deflation_index) ]
+      pattern: "*.xfl"
+  - recruit_opts:
+      type: map
+      description: |
+        Recruit settings; see modules/amd-ph-core/ouroboros/recruit for the required keys.
+        Structure: val(recruit_opts)
+  - align_opts:
+      type: map
+      description: |
+        Polish settings; see modules/amd-ph-core/ouroboros/polish for the required keys.
+        Structure: val(align_opts)
+  - call_opts:
+      type: map
+      description: |
+        Variant-calling settings; see modules/amd-ph-core/ouroboros/call for the required keys.
+        Structure: val(call_opts)
+  - max_rounds:
+      type: integer
+      description: |
+        Safety cap on recruit rounds.
+        Structure: val(max_rounds)
+  - max_iter:
+      type: integer
+      description: |
+        Safety cap on polish iterations.
+        Structure: val(max_iter)
+  - amplicon_mode:
+      type: boolean
+      description: |
+        Force the reads-on-reference path for every bin.
+        Structure: val(amplicon_mode)
+  - stitch:
+      type: boolean
+      description: |
+        Project consensuses into the panel reference coordinate frame.
+        Structure: val(stitch)
+  - amplicon_min_depth:
+      type: integer
+      description: |
+        Depth at or above which a reference position is called rather than masked.
+        Structure: val(amplicon_min_depth)
+
+output:
+  - genomes:
+      type: file
+      description: |
+        Per-sample genomes and contamination screen.
+        Structure: [ val(meta), path(genomes.tsv) ]
+      pattern: "*.genomes.tsv"
+  - consensus:
+      type: file
+      description: |
+        Plurality consensus per bin.
+        Structure: [ val(meta), val(gene), path(fasta) ]
+      pattern: "*.fasta"
+  - refpinned:
+      type: file
+      description: |
+        Reference-pinned consensus per bin.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.fa"
+  - variants:
+      type: file
+      description: |
+        Called variants per bin, in the assembled consensus frame.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-variants.txt"
+  - alleles:
+      type: file
+      description: |
+        Per-position allele counts for every site.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-allAlleles.txt"
+  - coverage:
+      type: file
+      description: |
+        Per-position depth at true per-read depth, in the consensus frame.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-coverage.txt"
+  - bam:
+      type: file
+      description: |
+        Coordinate-sorted alignments per bin.
+        Structure: [ val(meta), val(gene), path(bam) ]
+      pattern: "*.bam"
+  - vcf:
+      type: file
+      description: |
+        VCFv4.2 per bin, in the assembled consensus frame.
+        Structure: [ val(meta), val(gene), path(vcf) ]
+      pattern: "*.vcf"
+  - amended:
+      type: file
+      description: |
+        Consensus with called variants applied.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.fa"
+  - stitched:
+      type: file
+      description: |
+        Consensus projected into the panel reference frame.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.stitched.fa"
+  - relabelled:
+      type: file
+      description: |
+        Amended consensuses byte-identical to their stitch result; the caller publishes these as
+        <gene>.stitched.fa.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.fa"
+  - amplicon_bam:
+      type: file
+      description: |
+        Reads mapped to the full panel record, for routed bins.
+        Structure: [ val(meta), val(gene), path(bam), path(bai) ]
+      pattern: "*.amplicon.bam"
+  - amplicon_consensus:
+      type: file
+      description: |
+        Full-length reference-anchored consensus, N below the depth threshold.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.amplicon.consensus.fa"
+  - amplicon_bed:
+      type: file
+      description: |
+        Intervals at or above the depth threshold.
+        Structure: [ val(meta), val(gene), path(bed) ]
+      pattern: "*.amplicon.islands.bed"
+  - chimeric:
+      type: file
+      description: |
+        Round-1 reads dropped as chimeric.
+        Structure: [ val(meta), path(chimeric.fa) ]
+      pattern: "chimeric.fa"
+  - nomatch:
+      type: file
+      description: |
+        Reads never recruited — the unrecruited fraction behind every depth reported.
+        Structure: [ val(meta), path(nomatch.fa) ]
+      pattern: "nomatch.fa"
+  - sort_stats:
+      type: file
+      description: |
+        Per-gene read counts for every recruit round, in round order.
+        Structure: [ val(meta), path(sorted_read_stats.txt) ]
+      pattern: "sorted_read_stats.txt"
+  - gather_timings:
+      type: file
+      description: |
+        Per-recruit-round seconds, convergence flag and stop reason.
+        Structure: [ val(meta), path(round_timings.tsv) ]
+      pattern: "round_timings.tsv"
+  - polish_timings:
+      type: file
+      description: |
+        Per-polish-iteration seconds, score, convergence flag and stop reason.
+        Structure: [ val(meta), val(gene), path(iter_timings.tsv) ]
+      pattern: "iter_timings.tsv"
+  - versions:
+      type: file
+      description: |
+        File containing software versions.
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

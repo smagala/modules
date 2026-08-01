@@ -102,5 +102,6 @@ workflow OUROBOROS_ASSEMBLE_STAGE {
     amplicon_consensus = ch_amplicon_consensus               // channel: [ val(meta), val(gene), path(fa) ]
     amplicon_bed       = ch_amplicon_bed                     // channel: [ val(meta), val(gene), path(bed) ]
     stitched           = ch_stitched                         // channel: [ val(meta), val(gene), path(fa) ]
+    timings            = OUROBOROS_ASSEMBLE.out.timings      // channel: [ val(meta), val(gene), path(iter_timings.tsv) ]
     versions           = ch_versions                         // channel: [ path(versions.yml) ]
 }
