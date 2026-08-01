@@ -1,0 +1,110 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "ouroboros_align"
+description: |
+  One assembly-round alignment as a scatter-gather: ALIGNSPLIT -> ALIGNCHUNK -> ALIGNMERGE.
+  Reads for a gene are partitioned into chunks, each chunk is aligned as its own task, and the chunks
+  are gathered back into a winnowed SAM plus the reference refined from that round's pileup.
+  The gather is BOUNDED with groupKey(key, nchunk). This is not optional: the subworkflow is designed
+  to run inside a Nextflow recursion, where several rounds are in flight at once, and an unbounded
+  groupTuple waits for a channel close that never arrives. For the same reason every per-chunk join is
+  keyed on [meta, gene, round] rather than on meta alone.
+keywords:
+  - alignment
+  - scatter-gather
+  - smith-waterman
+  - consensus
+  - reference-refinement
+components:
+  - ouroboros/alignsplit
+  - ouroboros/alignchunk
+  - ouroboros/alignmerge
+
+input:
+  - ch_gene:
+      type: file
+      description: |
+        Reads and reference for one gene and round.
+        Structure: [ val(meta), val(gene), val(round), path(reads), path(align_ref) ]
+      pattern: "*.{fastq,fq}"
+  - aligner:
+      type: string
+      description: |
+        Aligner selector: RAMMAP (seeded, always one chunk) or LOCALSW (exhaustive, may scatter).
+        Structure: val(aligner)
+  - chunk_reads:
+      type: integer
+      description: |
+        Read count per chunk above which the scatter fans out.
+        Structure: val(chunk_reads)
+  - sw_match:
+      type: integer
+      description: |
+        Smith-Waterman match score.
+        Structure: val(sw_match)
+  - sw_mismatch:
+      type: integer
+      description: |
+        Smith-Waterman mismatch penalty.
+        Structure: val(sw_mismatch)
+  - sw_gap_open:
+      type: integer
+      description: |
+        Gap-open penalty, inclusive of the first extension per the IRMA convention.
+        Structure: val(sw_gap_open)
+  - sw_gap_extend:
+      type: integer
+      description: |
+        Gap-extension penalty.
+        Structure: val(sw_gap_extend)
+  - term_ext:
+      type: integer
+      description: |
+        Reference-terminus end-bonus extension, which recovers the terminal base.
+        Structure: val(term_ext)
+  - ins_fold_freq:
+      type: float
+      description: |
+        Insertion frequency at or above which an insertion folds into the refined reference.
+        Structure: val(ins_fold_freq)
+  - del_fold_freq:
+      type: float
+      description: |
+        Deletion frequency at or above which a deletion folds into the refined reference.
+        Structure: val(del_fold_freq)
+  - mut_min_strand_frac:
+      type: float
+      description: |
+        Minimum strand fraction for a reference-changing base; 0 disables the guard.
+        Structure: val(mut_min_strand_frac)
+
+output:
+  - sam:
+      type: file
+      description: |
+        Winnowed best-per-read alignments and the round's assembly score.
+        Structure: [ val(meta), val(gene), val(round), path(ref), path(sam), val(asm_score) ]
+      pattern: "*.sam"
+  - refined:
+      type: file
+      description: |
+        Reference amended from this round's pileup, with its convergence and indel-fold flags.
+        Structure: [ val(meta), val(gene), val(round), path(next_ref), val(converged), val(indels_folded) ]
+      pattern: "next-*.ref"
+  - pileup:
+      type: file
+      description: |
+        Per-position pileup counts for the gene.
+        Structure: [ val(meta), val(gene), val(round), path(json) ]
+      pattern: "*.json"
+  - versions:
+      type: file
+      description: |
+        File containing software versions.
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

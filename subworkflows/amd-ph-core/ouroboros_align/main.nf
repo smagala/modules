@@ -37,8 +37,8 @@ workflow OUROBOROS_ALIGN {
     main:
     ch_versions = Channel.empty()
 
+    // ALIGNSPLIT emits no versions: it only partitions a FASTQ with coreutils.
     OUROBOROS_ALIGNSPLIT( ch_gene, aligner, chunk_reads )
-    ch_versions = ch_versions.mix( OUROBOROS_ALIGNSPLIT.out.versions.first() )
 
     // chunk-file list -> one row per chunk, carrying the chunk id parsed from its filename
     ch_chunks = OUROBOROS_ALIGNSPLIT.out.chunks

@@ -1,0 +1,130 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "ouroboros_alignmerge"
+description: |
+  Gather the per-chunk SAMs and produce the winnowed SAM, its assembly score, the per-position pileup,
+  and the refined reference for the next round.
+  winnow_pileup.py streams the chunk SAMs in deterministic order in a single pass: it winnows
+  best-per-read, sums the assembly score that the recursion uses as its convergence objective, and
+  builds the pileup JSON. No concatenated intermediate SAM is written, which avoids a full write plus
+  re-read of the largest file in the pipeline. Each read lies wholly within one chunk, so per-query
+  records stay contiguous across chunk boundaries — the precondition the winnow relies on.
+  combine_sam_stats.py then amends the reference from that pileup, folding indels above the given
+  frequencies and reporting whether the reference stopped moving.
+keywords:
+  - gather
+  - sam
+  - pileup
+  - consensus
+  - reference-refinement
+tools:
+  - "winnow_pileup.py":
+      description: "Streams chunk SAMs in one pass to winnow best-per-read alignments, sum the assembly score, and build the per-position pileup JSON. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["MIT"]
+  - "combine_sam_stats.py":
+      description: "Amends a reference from a pileup JSON, folding insertions and deletions above the given frequency thresholds and flagging whether any indel was folded. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["MIT"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - gene:
+        type: string
+        description: Target/bin label, which is also the panel reference record ID
+    - round:
+        type: integer
+        description: Assembly round number
+    - ref:
+        type: file
+        description: Reference this round aligned against
+        pattern: "*.{fa,fasta,ref}"
+    - chunk_sams:
+        type: file
+        description: All chunk SAMs for this gene and round, gathered under a bounded groupKey
+        pattern: "c*.sam"
+  - aligner:
+      type: string
+      description: "Aligner selector: RAMMAP or LOCALSW. Selects which SAM field carries the alignment score."
+  - ins_fold_freq:
+      type: float
+      description: Insertion frequency at or above which an insertion folds into the refined reference
+  - del_fold_freq:
+      type: float
+      description: Deletion frequency at or above which a deletion folds into the refined reference
+  - mut_min_strand_frac:
+      type: float
+      description: Minimum strand fraction for a reference-changing base, which rejects one-strand or thin-data mutations. 0 disables the guard.
+
+output:
+  - sam:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - round:
+          type: integer
+          description: Assembly round number
+      - ref:
+          type: file
+          description: The reference this round aligned against, passed through
+          pattern: "*.{fa,fasta,ref}"
+      - "*.sam":
+          type: file
+          description: Winnowed best-per-read alignments for the gene
+          pattern: "*.sam"
+      - ASM_SCORE:
+          type: integer
+          description: Summed alignment score, the recursion's convergence objective
+  - refined:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - round:
+          type: integer
+          description: Assembly round number
+      - "next-*.ref":
+          type: file
+          description: Reference amended from this round's pileup, consumed by the next round
+          pattern: "next-*.ref"
+      - CONVERGED:
+          type: integer
+          description: 1 when the amended reference is identical to the input reference, else 0
+      - INDELS_FOLDED:
+          type: integer
+          description: Non-zero when an indel was folded into the reference this round
+  - pileup:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - round:
+          type: integer
+          description: Assembly round number
+      - "*.json":
+          type: file
+          description: Per-position pileup counts for the gene
+          pattern: "*.json"
+  - versions:
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

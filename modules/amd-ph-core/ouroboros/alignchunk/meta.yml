@@ -1,0 +1,95 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "ouroboros_alignchunk"
+description: |
+  Align one read chunk to the round's reference — the scatter unit of the alignment scatter-gather.
+  Both aligners thread internally over the chunk's reads and their Smith-Waterman kernels are SIMD, so
+  a chunk is sized to soak up most of a sample as a single multicore task. Memory stays flat because
+  local_sw batches and rammap streams. Emits the chunk's SAM, with its own header, for ALIGNMERGE to
+  stream and winnow.
+keywords:
+  - alignment
+  - smith-waterman
+  - sam
+  - scatter
+  - rammap
+tools:
+  - "rammap":
+      description: "Pure-Rust minimap2-compatible read mapper; used for the seeded RAMMAP path."
+      homepage: "https://github.com/jwanglab/rammap"
+      documentation: "https://github.com/jwanglab/rammap"
+      licence: ["MIT"]
+      args_id: "$args"
+  - "local_sw":
+      description: "Exhaustive local Smith-Waterman aligner with CIGAR output, built from the ouroboros patch series on rammap-core. Used for the LOCALSW path, where an exact alignment is required rather than a seeded one."
+      homepage: "https://github.com/jwanglab/rammap"
+      documentation: "https://github.com/jwanglab/rammap"
+      licence: ["MIT"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - gene:
+        type: string
+        description: Target/bin label, which is also the panel reference record ID
+    - round:
+        type: integer
+        description: Assembly round number
+    - chunk_id:
+        type: string
+        description: Zero-padded chunk index parsed from the chunk filename
+    - ref:
+        type: file
+        description: Reference to align this chunk against
+        pattern: "*.{fa,fasta,ref}"
+    - chunk_fastq:
+        type: file
+        description: One read chunk from ALIGNSPLIT
+        pattern: "chunk.*.fastq"
+  - aligner:
+      type: string
+      description: "Aligner selector: RAMMAP or LOCALSW"
+  - sw_match:
+      type: integer
+      description: Smith-Waterman match score (LOCALSW only)
+  - sw_mismatch:
+      type: integer
+      description: Smith-Waterman mismatch penalty (LOCALSW only)
+  - sw_gap_open:
+      type: integer
+      description: Gap-open penalty, inclusive of the first extension per the IRMA convention. The module subtracts one extension before calling local_sw, which expects an exclusive open penalty.
+  - sw_gap_extend:
+      type: integer
+      description: Gap-extension penalty (LOCALSW only)
+  - term_ext:
+      type: integer
+      description: Reference-terminus end-bonus extension, which recovers the terminal base (LOCALSW only)
+
+output:
+  - sam:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - round:
+          type: integer
+          description: Assembly round number
+      - "c*.sam":
+          type: file
+          description: Alignments for this chunk, with their own SAM header
+          pattern: "c*.sam"
+  - versions:
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

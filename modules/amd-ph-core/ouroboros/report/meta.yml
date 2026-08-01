@@ -1,0 +1,98 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "ouroboros_report"
+description: |
+  Per-gene diagnostic PDFs: a coverage diagram and a caller-heuristics plot.
+  These are human-facing artifacts and nothing downstream consumes them. The module exists separately
+  so the plotting stack stays off the compute-heavy calling path. Plot failures are swallowed on
+  purpose — a diagram is never a reason to fail a gene — so both outputs are optional and a run with no
+  PDFs is a valid result rather than an error.
+keywords:
+  - report
+  - coverage
+  - diagram
+  - qc
+  - pdf
+tools:
+  - "coverage_diagram.py":
+      description: "Plots per-position depth, overlaying minority variants when the variant table and paired stats are both available. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["MIT"]
+  - "heuristic_diagram.py":
+      description: "Plots the caller's decision heuristics against the per-position allele table. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["MIT"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - gene:
+        type: string
+        description: Target/bin label, which is also the panel reference record ID
+    - coverage:
+        type: file
+        description: Per-position depth table
+        pattern: "*-coverage.txt"
+    - variants:
+        type: file
+        description: Called variants, used for the minority-variant overlay
+        pattern: "*-variants.txt"
+    - alleles:
+        type: file
+        description: Per-position allele counts for the heuristics plot
+        pattern: "*-allAlleles.txt"
+    - pairing:
+        type: file
+        description: Mate-pair statistics; pass an empty list for single-end data (Optional)
+        pattern: "*-pairingStats.txt"
+  - min_variant_qual:
+      type: integer
+      description: Minimum mean alt-allele base quality, drawn as a threshold on the heuristics plot
+  - min_variant_freq:
+      type: float
+      description: Minimum alt allele frequency, drawn as a threshold on the heuristics plot
+  - min_column_coverage:
+      type: integer
+      description: Minimum total column coverage, drawn as a threshold on the heuristics plot
+  - min_confidence:
+      type: float
+      description: Confidence threshold, drawn on the heuristics plot
+
+output:
+  - coverage_diagram:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - "*-coverageDiagram.pdf":
+          type: file
+          description: Depth plot for the gene (Optional)
+          pattern: "*-coverageDiagram.pdf"
+  - heuristic_diagram:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - "*-heuristics.pdf":
+          type: file
+          description: Caller-heuristics plot for the gene (Optional)
+          pattern: "*-heuristics.pdf"
+  - versions:
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

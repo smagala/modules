@@ -18,10 +18,11 @@ process OUROBOROS_ALIGNSPLIT {
     val aligner
     val chunk_reads
 
+    // No versions.yml: this process only partitions a FASTQ with coreutils (wc/split/mv). There is no
+    // meaningful tool version to report, and emitting the coreutils version would be noise.
     output:
     tuple val(meta), val(gene), val(round), path(ref), path("chunk.*.fastq"), emit: chunks
     tuple val(meta), val(gene), val(round), env('NCHUNK')                   , emit: nchunk
-    path "versions.yml"                                                     , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -50,21 +51,11 @@ process OUROBOROS_ALIGNSPLIT {
         NCHUNK=\$(ls chunk.*.fastq | wc -l)
         [ "\$NCHUNK" -lt 1 ] && { : > chunk.0000.fastq; NCHUNK=1; }
     fi
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        coreutils: \$(split --version | head -1 | grep -oE '[0-9]+\\.[0-9]+' | head -1)
-    END_VERSIONS
     """
 
     stub:
     """
     touch chunk.0000.fastq
     NCHUNK=1
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        coreutils: \$(split --version | head -1 | grep -oE '[0-9]+\\.[0-9]+' | head -1)
-    END_VERSIONS
     """
 }
