@@ -11,7 +11,7 @@ process OUROBOROS_PREPROCESS {
     tag "$meta.id"
     label 'process_medium'
 
-    container 'oamd-bio-ouroboros:1.0.0'
+    container 'oamd-bio-python:3.12-orb'
 
     input:
     tuple val(meta), path(reads)

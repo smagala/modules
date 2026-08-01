@@ -32,7 +32,7 @@ process OUROBOROS_RECRUIT {
     tag "${meta.id}"
     label 'process_high'
 
-    container 'oamd-bio-ouroboros:1.0.0'
+    container 'oamd-bio-python:3.12-orb'
 
     input:
     tuple val(meta), path(reads), path(refs)

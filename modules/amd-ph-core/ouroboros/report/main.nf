@@ -8,7 +8,7 @@ process OUROBOROS_REPORT {
     tag "${meta.id}_${gene}"
     label 'process_single'
 
-    container 'oamd-bio-ouroboros:1.0.0'
+    container 'oamd-bio-python:3.12-orb'
 
     input:
     tuple val(meta), val(gene), path(coverage), path(variants), path(alleles), path(pairing)

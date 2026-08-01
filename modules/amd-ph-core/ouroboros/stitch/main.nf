@@ -15,7 +15,7 @@ process OUROBOROS_STITCH {
     tag "${meta.id}_${gene}"
     label 'process_low'
 
-    container 'oamd-bio-ouroboros:1.0.0'
+    container 'oamd-bio-python:3.12-orb'
 
     input:
     tuple val(meta), val(gene), path(amended), path(bam), path(bai), path(ref)
