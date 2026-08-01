@@ -3,11 +3,16 @@
 //
 // OUROBOROS_GATHER — the recruit/refine half of the pipeline, and the boundary it hands to assembly.
 //
-// The loop is a TOPIC FEEDBACK loop rather than `.recurse()`: OUROBOROS_SEED puts the initial state on
-// the 'gather' topic, OUROBOROS_RECRUIT reads a state, runs one whole round, and re-emits the next
-// state to the SAME topic, so it feeds itself. `until { round > max || done }` drops the converged item
-// and stops the loop. Because the loop mechanics live in the topic, there is no per-round join or
-// branch here at all.
+// The loop is a TOPIC FEEDBACK loop rather than `.recurse()`, and it is owned HERE rather than by the
+// modules. The seed state is a plain channel map — round 1 is just the panel reference set, the query
+// reads, and two empty directory slots — so there is no seeding *process*: Nextflow's input staging
+// builds the instate/ layout, and a task that only ran `mkdir` and `cp` would be pure overhead.
+// OUROBOROS_RECRUIT publishes its next state onto the 'gather' topic, and `until { round > max ||
+// done }` drops the converged item to stop the loop.
+//
+// The topic name necessarily lives in the module, because only a process can publish to a topic — no
+// operator pushes a channel onto one. What lives HERE is the seeding and the termination gate, so the
+// module can be run for a single round, or tested, without a loop around it.
 //
 // Per-round artifacts come off OUROBOROS_RECRUIT's normal (non-topic) outputs and are collected after
 // the loop closes.
@@ -20,7 +25,6 @@
 // it only reshaped channels — so the two are merged here rather than preserved as an indirection.)
 //
 
-include { OUROBOROS_SEED          } from '../../../modules/amd-ph-core/ouroboros/recruit/main'
 include { OUROBOROS_RECRUIT       } from '../../../modules/amd-ph-core/ouroboros/recruit/main'
 include { OUROBOROS_GATHERREPORTS } from '../../../modules/amd-ph-core/ouroboros/gatherreports/main'
 
@@ -40,15 +44,19 @@ workflow OUROBOROS_GATHER {
               "would have nothing to polish."
     }
 
-    // Seed the topic (round 1), then loop: RECRUIT reads the topic, truncated by until, and re-feeds it.
-    OUROBOROS_SEED( ch_reads_refs )
+    // Round-1 state, as data rather than as a task. The two empty lists are gene_refs/ and jsons/:
+    // there is no prior round to carry, and every read of those directories in the module is guarded.
+    ch_seed = ch_reads_refs.map { meta, reads, refs -> [ meta, refs, reads, [], [], 1, 0 ] }
 
-    ch_gather = channel.topic('gather')
-    ch_loop   = ch_gather.until { meta, state, round, done ->
-        (round as int) > (max_rounds as int) || (done as int) == 1
-    }
+    // The loop: seed, then RECRUIT's own emissions fed back through the topic, truncated by `until`.
+    ch_loop = ch_seed
+        .mix( channel.topic('gather') )
+        .until { meta, refs, carry, gene_refs, jsons, round, done ->
+            (round as int) > (max_rounds as int) || (done as int) == 1
+        }
 
     OUROBOROS_RECRUIT( ch_loop, recruit_opts )
+
     ch_versions = ch_versions.mix( OUROBOROS_RECRUIT.out.versions.first() )
 
     // ── collect per-round artifacts (these channels close when the loop stops) ──

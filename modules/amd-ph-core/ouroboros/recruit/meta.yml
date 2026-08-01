@@ -4,10 +4,14 @@ name: "ouroboros_recruit"
 description: |
   Run one whole recruit round — MATCH, SORT, per-gene ALIGN and REFINE, then the convergence close — in
   a single process, driven by a topic feedback loop.
-  The process reads a bundled state directory, runs the round, writes the next state directory, and
-  re-emits it to the SAME 'gather' topic it reads from, so it feeds itself. OUROBOROS_SEED (in this same
-  module, since it produces the state format this process consumes) puts the first state on the topic;
-  the calling subworkflow's `until` gate drops the converged item to stop the loop.
+  The round state arrives as a TUPLE that Nextflow stages into the instate/ layout — there is no
+  seeding process, because a task whose whole job is `mkdir` and `cp` is pure overhead. Round 1 passes
+  empty lists for gene_refs and jsons, so those directories simply do not exist, and every read of them
+  is guarded. gene_refs/ and jsons/ are emitted as DIRECTORIES rather than globs, because a barren round
+  legitimately writes nothing into them and a `/*` output glob would fail on a missing match.
+  The next state is emitted both as a named output and onto the 'gather' topic. The topic has to live
+  here — only a process can publish to a topic — but the seeding and the termination gate belong to the
+  calling subworkflow, so this module can be run for a single round, or tested, without a loop.
   The round is one process rather than five on purpose. An earlier decomposition into discrete
   MATCH/SORT/ALIGN/REFINE processes was clean on paper and lost badly on the cloud, because the round's
   own compute is seconds and per-step task overhead dominated it.
@@ -73,12 +77,22 @@ input:
         description: |
           Groovy Map containing sample information
           e.g. `[ id:'sample1' ]`
-    - instate:
+    - refs:
+        type: file
+        description: Combined reference matched this round; staged as instate/refs.fasta
+        pattern: "*.{fa,fasta}"
+    - carry:
+        type: file
+        description: Reads still to match — the prior round's nomatch, or the initial query; staged as instate/carry.fa
+        pattern: "*.{fa,fasta}"
+    - gene_refs:
         type: directory
-        description: |
-          Round input state: refs.fasta (the combined reference matched this round), carry.fa (reads
-          still to match), gene_refs/ (prior per-gene refs), jsons/ (CUMULATIVE per-gene alignment JSONs).
-        pattern: "instate"
+        description: Prior per-gene refs, used for reference selection. Pass [] on round 1 (Optional)
+        pattern: "gene_refs"
+    - jsons:
+        type: directory
+        description: CUMULATIVE per-gene alignment JSONs across all prior rounds. Pass [] on round 1 (Optional)
+        pattern: "jsons"
     - round:
         type: integer
         description: Round number, 1-based
@@ -95,6 +109,32 @@ input:
         gather_ref_floor. Validated in the script block. (Mandatory)
 
 output:
+  - state:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "outstate/refs.fasta":
+          type: file
+          description: Reference for the next round
+          pattern: "outstate/refs.fasta"
+      - "outstate/carry.fa":
+          type: file
+          description: Reads carried into the next round; empty when the loop has converged
+          pattern: "outstate/carry.fa"
+      - "outstate/gene_refs":
+          type: directory
+          description: Per-gene refs for the next round; may be empty after a barren round
+          pattern: "outstate/gene_refs"
+      - "outstate/jsons":
+          type: directory
+          description: Cumulative per-gene alignment JSONs, priors plus this round's
+          pattern: "outstate/jsons"
+      - RN:
+          type: integer
+          description: Next round number
+      - DONE:
+          type: integer
+          description: 1 when the reference stopped moving or nothing is left to recruit
   - gene_refs:
       - meta:
           type: map

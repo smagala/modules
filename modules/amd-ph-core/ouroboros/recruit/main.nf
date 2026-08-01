@@ -1,22 +1,33 @@
 // OUROBOROS_RECRUIT — one whole recruit round in a SINGLE process, driven by a topic feedback loop.
 //
-// The process reads a bundled state directory, runs the round (MATCH -> SORT -> per-gene ALIGN+REFINE
-// -> convergence close), writes the NEXT state directory, and re-emits it to the SAME 'gather' topic it
-// reads from — so it feeds itself. OUROBOROS_SEED puts the first state on the topic; the subworkflow's
-// `until { done }` drops the converged item to stop the loop.
+// The process reads a round state, runs the round (MATCH -> SORT -> per-gene ALIGN+REFINE ->
+// convergence close), and emits the NEXT state. The calling subworkflow feeds that back in, so the
+// loop lives there rather than here.
 //
 // The round is ONE process rather than five deliberately. An earlier decomposition into discrete
 // MATCH/SORT/ALIGN/REFINE processes was correct on paper and lost badly on the cloud: the round's own
 // compute is seconds, so per-step task overhead dominated. See the notebook's ADR-0013 for the trace
 // data and for the R1-versus-tail split that is planned next.
 //
-// State dir (instate/ -> outstate/):
+// The round state is a TUPLE, staged into the instate/ layout by Nextflow rather than assembled by a
+// prior process:
 //   refs.fasta   combined reference matched this round
 //   carry.fa     reads still to match — the prior round's nomatch, or the initial query
 //   gene_refs/   prior per-gene refs, used for reference selection
 //   jsons/       CUMULATIVE per-gene alignment JSONs. Cumulative is not an optimisation: building a
 //                reference from only the current round's JSON collapses it on a round that recruits
 //                few reads, which then propagates into assembly.
+//
+// Round 1 passes [] for gene_refs and jsons, so those directories simply do not exist — every read of
+// them in the script below is already guarded. gene_refs/ and jsons/ are emitted as DIRECTORIES rather
+// than as globs, because a barren round legitimately writes nothing into them and a `/*` output glob
+// would fail the task on a missing match.
+//
+// The next state is emitted BOTH as a named output and onto the 'gather' topic. The topic is what
+// closes the feedback loop, and it has to live here: only a process can publish to a topic, there is
+// no operator that pushes a channel onto one. So this module does know the topic's name — an honest
+// coupling, not something the subworkflow can take over. What the subworkflow does own is the seeding
+// and the termination gate, which is why there is no seeding process and no `until` in here.
 //
 // Per-round artifacts that the assembly step collects are NORMAL (non-topic) outputs, and optional, so
 // a barren round simply emits fewer of them rather than failing on a missing output.
@@ -28,11 +39,17 @@ process OUROBOROS_RECRUIT {
     container 'oamd-bio-ouroboros:1.0.0'
 
     input:
-    tuple val(meta), path('instate'), val(round), val(done)   // `done` is the until gate; unused here
+    tuple val(meta), path(refs,      stageAs: 'instate/refs.fasta'),
+                     path(carry,     stageAs: 'instate/carry.fa'),
+                     path(gene_refs, stageAs: 'instate/gene_refs'),
+                     path(jsons,     stageAs: 'instate/jsons'),
+                     val(round), val(done)   // `done` is the until gate; unused here
     val recruit_opts
 
     output:
-    tuple val(meta), path("outstate"), env('RN'), env('DONE'), topic: 'gather'
+    tuple val(meta), path("outstate/refs.fasta"), path("outstate/carry.fa"),
+                     path("outstate/gene_refs"), path("outstate/jsons"),
+                     env('RN'), env('DONE'), emit: state, topic: 'gather'
     tuple val(meta), path("R${round}-*.ref")           , val(round), emit: gene_refs  , optional: true
     tuple val(meta), path("R${round}-*.fa")            , val(round), emit: sorted     , optional: true
     tuple val(meta), path("R${round}.nomatch")         , val(round), emit: raw_nomatch
@@ -168,38 +185,5 @@ process OUROBOROS_RECRUIT {
     "${task.process}":
         rammap: \$(rammap --version 2>/dev/null | grep -oE '[0-9][^ ]*' | head -1 || echo unknown)
     END_VERSIONS
-    """
-}
-
-// OUROBOROS_SEED — put the initial state on the 'gather' topic (round 1): the combined refs plus the
-// query reads as carry, with empty gene_refs/ and jsons/. This is the setup step of the topic feedback
-// loop, and it lives beside OUROBOROS_RECRUIT because the two share the state-directory contract —
-// splitting them would separate a producer from the only consumer of its format.
-process OUROBOROS_SEED {
-    tag "${meta.id}"
-    label 'process_low'
-
-    container 'oamd-bio-ouroboros:1.0.0'
-
-    input:
-    tuple val(meta), path(reads), path(refs)
-
-    output:
-    tuple val(meta), path("outstate"), val(1), val(0), topic: 'gather'
-
-    when:
-    task.ext.when == null || task.ext.when
-
-    script:
-    """
-    mkdir -p outstate/gene_refs outstate/jsons
-    cp ${refs} outstate/refs.fasta
-    cp ${reads} outstate/carry.fa
-    """
-
-    stub:
-    """
-    mkdir -p outstate/gene_refs outstate/jsons
-    touch outstate/refs.fasta outstate/carry.fa
     """
 }

@@ -3,10 +3,13 @@
 name: "ouroboros_gather"
 description: |
   The recruit and reference-refinement half of the pipeline, plus the boundary it hands to assembly.
-  The loop is a TOPIC FEEDBACK loop rather than .recurse(): OUROBOROS_SEED places the initial state on
-  the 'gather' topic, and OUROBOROS_RECRUIT reads a state, runs one whole round, and re-emits the next
-  state to the SAME topic, so it feeds itself. An `until` gate drops the converged item and stops the
-  loop. Because the loop mechanics live in the topic, there is no per-round join or branch here at all.
+  The loop is a TOPIC FEEDBACK loop rather than .recurse(). The round-1 state is a plain channel map,
+  not a task: Nextflow's input staging builds the instate/ layout the recruit module expects, so a
+  seeding process would only have run `mkdir` and `cp`. OUROBOROS_RECRUIT publishes each next state onto
+  the 'gather' topic, which is mixed with the seed, and an `until` gate drops the converged item to stop
+  the loop. Because the loop mechanics live in the topic, there is no per-round join or branch here.
+  The topic name lives in the module because only a process can publish to a topic; the seeding and the
+  termination gate live here, so the module can be run for one round, or tested, without a loop.
   The subworkflow also shapes the gather-to-assemble boundary: per gene, the sorted reads across all
   rounds, the HIGHEST-round refined reference, and the deflation index. That is the contract a single
   assemble run consumes, which is what allows assembly to be dispatched one bin at a time.
