@@ -1,0 +1,77 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "ouroboros_stitch"
+description: |
+  Place the deep assembled consensus into the full reference coordinate frame.
+  Iterative assembly produces high-quality calls but trims uncovered columns, so its consensus is
+  shorter than the reference and carries no genome coordinates. This projects those calls back onto the
+  full panel record while keeping three cases distinct that a naive projection would conflate: a real
+  base where the assembly aligned one; N where the assembly never spanned, or where an assembly gap has
+  read depth below the threshold (a dropout — we do not know what is there); and a dash where an
+  assembly gap IS covered (a real deletion — we know something is missing). That N-versus-dash
+  distinction is the reason this module exists. Reuses the reads-on-reference BAM and record that
+  OUROBOROS_AMPLICONCALL already built rather than remapping.
+keywords:
+  - consensus
+  - coordinates
+  - reference-frame
+  - projection
+  - deletion
+tools:
+  - "stitch_consensus.py":
+      description: "Projects an assembled consensus onto a full reference, reading depth from the reads-on-reference BAM via pysam to separate dropout from true deletion. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["MIT"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - gene:
+        type: string
+        description: Target/bin label, which is also the panel record ID
+    - amended:
+        type: file
+        description: Amended consensus from assembly, trimmed to covered columns
+        pattern: "*.fa"
+    - bam:
+        type: file
+        description: Reads mapped to the full panel record, used to tell dropout from true deletion
+        pattern: "*.bam"
+    - bai:
+        type: file
+        description: BAM index
+        pattern: "*.bam.bai"
+    - ref:
+        type: file
+        description: The full-length panel record for this gene
+        pattern: "*.ref"
+  - min_depth:
+      type: integer
+      description: Depth at or above which an assembly gap is treated as a real deletion rather than a dropout
+
+output:
+  - stitched:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - "*.stitched.fa":
+          type: file
+          description: Consensus in the full reference coordinate frame
+          pattern: "*.stitched.fa"
+  - versions:
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

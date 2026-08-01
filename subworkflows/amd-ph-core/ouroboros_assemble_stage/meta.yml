@@ -1,0 +1,168 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "ouroboros_assemble_stage"
+description: |
+  The polish-and-call half of the pipeline as a self-contained stage.
+  Consumes the gather-to-assemble boundary — per gene, the sorted reads, the refined reference, and the
+  deflation index — plus the panel reference set, and runs OUROBOROS_ASSEMBLE followed by the two-way
+  stitch gate. One invocation is one bin's independent recursion, which is what makes per-bin
+  dispatch possible.
+  The stitch gate runs the reference-anchored read mapping ONLY where it can change the output: a gene
+  needs the full reads-on-reference path when amplicon mode is on or when assembly folded an indel,
+  and otherwise its amended consensus already IS the stitch result and is relabelled rather than
+  recomputed. That is the difference between remapping every gene and remapping almost none of them.
+  Relabelled genes are emitted on their own channel rather than published here; publishing is the
+  caller's job, and a subworkflow reaching for params.outdir would defeat reuse.
+keywords:
+  - assembly
+  - consensus
+  - amplicon
+  - stitch
+  - reference-frame
+components:
+  - ouroboros_assemble
+  - ouroboros/ampliconcall
+  - ouroboros/stitch
+
+input:
+  - ch_per_gene:
+      type: file
+      description: |
+        The gather-to-assemble boundary, per gene.
+        Structure: [ val(meta), val(gene), path(sorted_reads), path(refined_ref), path(deflation) ]
+      pattern: "*.{fa,fasta}"
+  - ch_ref_set:
+      type: file
+      description: |
+        The full panel reference set for the sample.
+        Structure: [ val(meta), path(panel_ref_set) ]
+      pattern: "*.{fa,fasta}"
+  - ch_deflation:
+      type: file
+      description: |
+        Deflation index for the sample, used to inflate patterns to true per-read depth.
+        Structure: [ val(meta), path(deflation_index) ]
+      pattern: "*.xfl"
+  - align_opts:
+      type: map
+      description: |
+        Alignment and reference-refinement settings; see OUROBOROS_ASSEMBLE for the required keys.
+        Structure: val(align_opts)
+  - call_opts:
+      type: map
+      description: |
+        Variant-calling and consensus settings; see OUROBOROS_ASSEMBLE for the required keys.
+        Structure: val(call_opts)
+  - max_iter:
+      type: integer
+      description: |
+        Safety cap on polishing rounds.
+        Structure: val(max_iter)
+  - amplicon_mode:
+      type: boolean
+      description: |
+        Force the reads-on-reference path for every gene rather than only for indel-folded genes.
+        Structure: val(amplicon_mode)
+  - stitch:
+      type: boolean
+      description: |
+        Project the amended consensus into the full reference coordinate frame.
+        Structure: val(stitch)
+  - amplicon_min_depth:
+      type: integer
+      description: |
+        Depth at or above which a reference position is called rather than masked.
+        Structure: val(amplicon_min_depth)
+
+output:
+  - refpinned:
+      type: file
+      description: |
+        Reference-pinned consensus per gene: the stitched output for routed genes and the amended
+        consensus for relabelled genes. Falls back to the reported consensus when stitch is off.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.fa"
+  - relabelled:
+      type: file
+      description: |
+        Amended consensuses that are byte-identical to their stitch result; the caller publishes these
+        as <gene>.stitched.fa.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.fa"
+  - consensus:
+      type: file
+      description: |
+        Plurality consensus per gene.
+        Structure: [ val(meta), val(gene), path(fasta) ]
+      pattern: "*.fasta"
+  - variants:
+      type: file
+      description: |
+        Called variants per gene.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-variants.txt"
+  - alleles:
+      type: file
+      description: |
+        Per-position allele counts for every site.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-allAlleles.txt"
+  - coverage:
+      type: file
+      description: |
+        Per-position depth at true per-read depth, in the consensus frame.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-coverage.txt"
+  - bam:
+      type: file
+      description: |
+        Coordinate-sorted alignments against the converged reference.
+        Structure: [ val(meta), val(gene), path(bam) ]
+      pattern: "*.bam"
+  - vcf:
+      type: file
+      description: |
+        VCFv4.2 in the assembled consensus frame.
+        Structure: [ val(meta), val(gene), path(vcf) ]
+      pattern: "*.vcf"
+  - amended:
+      type: file
+      description: |
+        Consensus with called variants applied.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.fa"
+  - amplicon_bam:
+      type: file
+      description: |
+        Reads mapped to the full panel record, for routed genes only.
+        Structure: [ val(meta), val(gene), path(bam), path(bai) ]
+      pattern: "*.amplicon.bam"
+  - amplicon_consensus:
+      type: file
+      description: |
+        Full-length reference-anchored consensus, N below the depth threshold.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.amplicon.consensus.fa"
+  - amplicon_bed:
+      type: file
+      description: |
+        Intervals with depth at or above the threshold.
+        Structure: [ val(meta), val(gene), path(bed) ]
+      pattern: "*.amplicon.islands.bed"
+  - stitched:
+      type: file
+      description: |
+        Consensus projected into the full reference coordinate frame.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.stitched.fa"
+  - versions:
+      type: file
+      description: |
+        File containing software versions.
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"
