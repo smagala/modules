@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "ouroboros_polish"
+description: |
+  Run the entire iterative polish loop for one bin in a single task.
+  Each iteration aligns the bin's reads to the current reference, winnows to best-per-read, scores the
+  alignment, and amends the reference from the resulting pileup. The loop stops at a byte fixpoint, at
+  a score plateau, or at max_iter. The HIGHEST-scoring iteration's reference and SAM are emitted, which
+  handles both a plateau and an outright score decrease without threading a "previous best" through
+  any state.
+  The loop lives in the task because no in-workflow iteration survives more than one item in flight:
+  `until` closes the whole channel, `filter` deadlocks, and `.recurse()` is value-channel only — which
+  is why the previous design bundled every bin of a sample into one recursion state and then needed a
+  skip-converged filter to stop converged bins re-aligning against an identical reference. Looping here
+  makes each bin an ordinary Nextflow task, so bins run concurrently with no round barrier.
+  Alignment uses the aligner's own threads rather than fanning chunks across tasks. Measured, that
+  fan-out fired on 1 of 33 cohort samples and was worth 3.1% of cohort wall, against the ~36% spent in
+  sequential rounds; both aligners thread internally and their kernels are SIMD, so the parallelism
+  moves from chunks-across-tasks to bins-across-tasks plus threads within.
+  Reads are inflated once at the top: they are iteration-invariant, only the reference moves.
+keywords:
+  - assembly
+  - polishing
+  - smith-waterman
+  - consensus
+  - reference-refinement
+tools:
+  - "local_sw":
+      description: "Exhaustive local Smith-Waterman aligner with CIGAR output, built from the ouroboros patch series on rammap-core. The LOCALSW path, where an exact alignment is wanted rather than a seeded one."
+      homepage: "https://github.com/jwanglab/rammap"
+      documentation: "https://github.com/jwanglab/rammap"
+      licence: ["MIT"]
+  - "rammap":
+      description: "Pure-Rust minimap2-compatible read mapper; the seeded RAMMAP path."
+      homepage: "https://github.com/jwanglab/rammap"
+      documentation: "https://github.com/jwanglab/rammap"
+      licence: ["MIT"]
+  - "irma-core":
+      description: "Rust reimplementation of IRMA's core routines; xflate inflates the read patterns to true per-read depth once, before the loop."
+      homepage: "https://github.com/CDCgov/irma-core"
+      documentation: "https://github.com/CDCgov/irma-core"
+      licence: ["Apache-2.0"]
+  - "winnow_pileup.py":
+      description: "Streams a SAM in one pass to winnow best-per-read alignments, sum the alignment score used as the convergence objective, and build the per-position pileup JSON. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["MIT"]
+  - "combine_sam_stats.py":
+      description: "Amends a reference from a pileup JSON, folding indels above the given frequency thresholds and flagging whether any indel was folded. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["MIT"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - gene:
+        type: string
+        description: Target/bin label, which is also the panel reference record ID
+    - reads:
+        type: file
+        description: Deflated read patterns recruited to this bin, across all gather rounds
+        pattern: "*.{fa,fasta}"
+    - ref:
+        type: file
+        description: The bin's refined reference from gather; the starting point for polishing
+        pattern: "*.{fa,fasta,ref}"
+    - deflation:
+        type: file
+        description: Deflation index, used once to inflate the patterns to true per-read depth
+        pattern: "*.xfl"
+  - align_opts:
+      type: map
+      description: |
+        Alignment and reference-refinement settings. Required keys: aligner, sw_match, sw_mismatch,
+        sw_gap_open (inclusive of the first extension, per the IRMA convention), sw_gap_extend,
+        term_ext, ins_fold_freq, del_fold_freq, mut_min_strand_frac. Validated in the script block.
+        (Mandatory)
+  - max_iter:
+      type: integer
+      description: Safety cap on iterations; convergence normally stops the loop first (Mandatory)
+
+output:
+  - aligned:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - "polished.ref":
+          type: file
+          description: Reference from the highest-scoring iteration; what variant calling is done against
+          pattern: "polished.ref"
+      - "polished.sam":
+          type: file
+          description: Winnowed alignments from that same iteration
+          pattern: "polished.sam"
+  - indels_folded:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - INDELS_FOLDED:
+          type: integer
+          description: 1 if any iteration folded an indel into the reference, OR-accumulated across iterations
+  - timings:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - "iter_timings.tsv":
+          type: file
+          description: Per-iteration seconds, alignment score, convergence flag, and why the loop stopped
+          pattern: "iter_timings.tsv"
+  - versions:
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

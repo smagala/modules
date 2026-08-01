@@ -2,57 +2,52 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "ouroboros_assemble"
 description: |
-  Iterative assembly polishing followed by terminal variant calling.
-  Reads are inflated once, then a polishing round runs as native Nextflow recursion: each round aligns
-  every not-yet-converged gene through OUROBOROS_ALIGN and amends its reference from the resulting
-  pileup. The loop stops when every gene reaches a byte fixpoint or a score plateau, or when the
-  iteration cap is hit. Each gene's HIGHEST-scoring round then feeds variant calling, which handles
-  both a plateau and an outright score decrease without threading a "previous best" through the state.
-  Requires `nextflow.preview.recursion = true` in the entry script; a nextflow.config setting is
-  ignored, and the flag is still required on Nextflow 25.10.4 despite the docs calling it deprecated.
-  Settings arrive as Maps rather than roughly twenty-five positional values, because positional
-  threading at that arity is unreadable and mis-binds silently when arguments are reordered. Required
-  keys are validated on entry so a typo fails loudly here instead of surfacing as a null inside a task
-  script. The alignment settings ride inside the recursion state, since .recurse() requires the take
-  and emit shapes to match exactly and therefore admits no second `take:`.
+  Polish and call every bin, one task per bin.
+  The polish loop turns inside OUROBOROS_POLISH, so this subworkflow holds no loop mechanics: no
+  .recurse(), no bundled per-sample state, no bounded groupTuple re-aggregation, and no
+  nextflow.preview.recursion. Each input row is one bin, and bins are an ordinary scatter that run
+  concurrently and converge independently.
+  What that removes was all workaround. .recurse() is value-channel only, so the previous design
+  bundled every gene of a sample into ONE recursion state, fanned out per gene each round, and
+  re-aggregated under a bounded groupKey — which forced a round barrier where every bin waited on the
+  slowest bin at every iteration. A skip-converged filter was then added so a converged bin would stop
+  re-aligning against an identical reference, a workaround for a barrier that only existed because of
+  the bundling. With one task per bin none of it is needed.
+  Settings arrive as Maps rather than roughly twenty-six positional values, and required keys are
+  validated on entry so a typo fails loudly here instead of surfacing as a null inside a task script.
 keywords:
   - assembly
   - polishing
-  - recursion
   - variant-calling
   - consensus
+  - scatter
 components:
-  - ouroboros/inflate
+  - ouroboros/polish
   - ouroboros/call
   - ouroboros/report
-  - ouroboros_align
 
 input:
-  - ch_in:
+  - ch_per_bin:
       type: file
       description: |
-        Per-gene sorted reads, the gather-stage reference, and the deflation index.
-        Structure: [ val(meta), val(gene), path(sorted_reads), path(ref), path(deflation_index) ]
+        One row per BIN: its sorted reads across all gather rounds, its refined reference, and the
+        sample deflation index. This is the scatter unit.
+        Structure: [ val(meta), val(gene), path(sorted_reads), path(ref), path(deflation) ]
       pattern: "*.{fa,fasta}"
   - align_opts:
       type: map
       description: |
-        Alignment and reference-refinement settings. Required keys: aligner, chunk_reads, sw_match,
-        sw_mismatch, sw_gap_open, sw_gap_extend, term_ext, ins_fold_freq, del_fold_freq,
-        mut_min_strand_frac. Validated on entry.
+        Alignment and reference-refinement settings; see modules/amd-ph-core/ouroboros/polish for keys.
         Structure: val(align_opts)
   - call_opts:
       type: map
       description: |
-        Variant-calling and consensus settings. Required keys: min_variant_count, min_variant_freq,
-        min_ins_freq, min_del_freq, min_variant_qual, min_column_coverage, min_confidence, sig_level,
-        auto_freq, min_ambig_freq, seg_numbers, sort_groups, caller, refchg, sor, amend_indels,
-        refchg_min_strand_frac. Validated on entry.
+        Variant-calling and consensus settings; see modules/amd-ph-core/ouroboros/call for keys.
         Structure: val(call_opts)
   - max_iter:
       type: integer
       description: |
-        Safety cap on polishing rounds. Convergence normally stops the loop well before this.
+        Safety cap on polish iterations. Convergence normally stops the loop first.
         Structure: val(max_iter)
 
 output:
@@ -106,8 +101,14 @@ output:
   - indels_folded:
       type: integer
       description: |
-        1 iff an indel was folded into the reference in any round, OR-accumulated across rounds.
+        1 iff an indel was folded into the reference in any iteration, OR-accumulated.
         Structure: [ val(meta), val(gene), val(0|1) ]
+  - timings:
+      type: file
+      description: |
+        Per-iteration seconds, alignment score, convergence flag, and why the loop stopped.
+        Structure: [ val(meta), val(gene), path(iter_timings.tsv) ]
+      pattern: "iter_timings.tsv"
   - versions:
       type: file
       description: |
