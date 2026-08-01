@@ -1,0 +1,83 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "ouroboros_preprocess"
+description: |
+  Quality-filter reads, optionally adapter-trim them, and deflate them into read patterns.
+  Deflation collapses identical reads into patterns plus an index, which is what makes the recruit loop
+  affordable — the loop aligns patterns rather than reads. Anything downstream that reports depth must
+  inflate first, because a pattern count understates true depth.
+  Reads are filtered whole, on mean or median quality; there is deliberately no read-level quality
+  trimming, since trimming would change a read's alignment footprint.
+  Adapter trimming applies only to paired data, where the mate is used to locate the adapter.
+keywords:
+  - qc
+  - preprocessing
+  - adapter-trimming
+  - deflation
+  - fastq
+tools:
+  - "irma-core":
+      description: "Rust reimplementation of IRMA's core routines; the preprocess subcommand filters, optionally adapter-trims, and deflates reads."
+      homepage: "https://github.com/CDCgov/irma-core"
+      documentation: "https://github.com/CDCgov/irma-core"
+      licence: ["Apache-2.0"]
+      args_id: "$args"
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1', single_end:false ]`
+    - reads:
+        type: file
+        description: Input reads; a two-element list selects the paired path
+        pattern: "*.{fastq,fq,fastq.gz,fq.gz}"
+  - qual_threshold:
+      type: integer
+      description: Minimum read quality; reads below it are dropped whole (Mandatory)
+  - min_len:
+      type: integer
+      description: Minimum read length (Mandatory)
+  - use_median:
+      type: boolean
+      description: Use median rather than mean read quality for the filter (Mandatory)
+  - adapter:
+      type: string
+      description: Adapter sequence to fuzzy-trim. Paired data only; empty disables trimming (Optional)
+
+output:
+  - reads_fasta:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.fa":
+          type: file
+          description: Deflated read patterns
+          pattern: "*.fa"
+  - deflation_index:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.xfl":
+          type: file
+          description: Deflation index mapping patterns back to reads; required to recover true depth
+          pattern: "*.xfl"
+  - qc_log:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "QC_log.txt":
+          type: file
+          description: Read counts and filtering summary
+          pattern: "QC_log.txt"
+  - versions:
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

@@ -1,0 +1,64 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "ouroboros_gatherreports"
+description: |
+  Collect the recruit loop's terminal reporting files for one sample: the round-1 chimeric reads, the
+  reads still unrecruited after the final round, and the per-gene read counts from every round.
+  These are inspection outputs and nothing downstream consumes them. nomatch.fa matters more than it
+  looks: every depth this pipeline reports is RECRUITED depth, so the unrecruited set is what lets a
+  reader tell "nothing was recruited here" from "nothing was sequenced here".
+  No versions.yml is emitted; this process only copies and concatenates files.
+keywords:
+  - report
+  - qc
+  - chimera
+  - recruitment
+  - summary
+tools:
+  - "coreutils":
+      description: "GNU coreutils copy and concatenate the collected files. No versions.yml is emitted; there is no meaningful tool version to report."
+      homepage: "https://www.gnu.org/software/coreutils/"
+      documentation: "https://www.gnu.org/software/coreutils/manual/"
+      licence: ["GPL v3+"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - chimeric:
+        type: file
+        description: Round-1 reads dropped as chimeric
+        pattern: "*.chim"
+    - nomatch:
+        type: file
+        description: Reads still unrecruited after the final round
+        pattern: "*.nomatch"
+    - sort_stats:
+        type: file
+        description: Per-round sort statistics, staged in round order
+        pattern: "*.txt"
+
+output:
+  - reports:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "chimeric.fa":
+          type: file
+          description: Round-1 chimeric reads
+          pattern: "chimeric.fa"
+      - "nomatch.fa":
+          type: file
+          description: Reads never recruited; the unrecruited fraction behind every reported depth
+          pattern: "nomatch.fa"
+      - "sorted_read_stats.txt":
+          type: file
+          description: Per-gene read-pattern and read counts across all rounds, tab-separated
+          pattern: "sorted_read_stats.txt"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"
