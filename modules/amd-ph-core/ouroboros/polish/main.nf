@@ -39,7 +39,7 @@ process OUROBOROS_POLISH {
     val max_iter
 
     output:
-    tuple val(meta), val(gene), path("polished.ref"), path("polished.sam"), emit: aligned
+    tuple val(meta), val(gene), path("polished.ref"), path("polished.sam"), env('CONVERGE_REASON'), emit: aligned
     tuple val(meta), val(gene), env('INDELS_FOLDED')                      , emit: indels_folded
     tuple val(meta), val(gene), path("iter_timings.tsv")                  , emit: timings
     path "versions.yml"                                                   , emit: versions
@@ -147,6 +147,10 @@ process OUROBOROS_POLISH {
         rm -f win_\$(( iter - 1 )).sam 2>/dev/null || true
     done
 
+    # Terminal state, exported so the caller can route a bin that produced nothing away from variant
+    # calling rather than feeding it a zero-byte SAM.
+    CONVERGE_REASON=\$REASON
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         irma_core: \$(irma-core --version 2>&1 | grep -oE '[0-9][^ ]*' | head -1)
@@ -158,6 +162,7 @@ process OUROBOROS_POLISH {
     """
     touch polished.ref polished.sam
     INDELS_FOLDED=0
+    CONVERGE_REASON=reference_stable
     printf 'iter\\tseconds\\tscore\\tconverged\\treason\\n1\\t0\\t0\\t1\\treference_stable\\n' > iter_timings.tsv
 
     cat <<-END_VERSIONS > versions.yml

@@ -89,5 +89,6 @@ workflow OUROBOROS {
     sort_stats         = OUROBOROS_GATHER.out.sort_stats            // channel: [ val(meta), path(sorted_read_stats.txt) ]
     gather_timings     = OUROBOROS_GATHER.out.timings               // channel: [ val(meta), path(round_timings.tsv) ]
     polish_timings     = OUROBOROS_ASSEMBLE_STAGE.out.timings       // channel: [ val(meta), val(gene), path(iter_timings.tsv) ]
+    unalignable        = OUROBOROS_ASSEMBLE_STAGE.out.unalignable   // channel: [ val(meta), val(gene), val(reason) ] — bins the aligner could not anchor
     versions           = ch_versions                                // channel: [ path(versions.yml) ]
 }

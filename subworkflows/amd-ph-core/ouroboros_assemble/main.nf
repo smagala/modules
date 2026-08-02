@@ -57,8 +57,16 @@ workflow OUROBOROS_ASSEMBLE {
     OUROBOROS_POLISH( ch_per_bin, align_opts, max_iter )
     ch_versions = ch_versions.mix( OUROBOROS_POLISH.out.versions.first() )
 
+    // Route bins that aligned nothing away from calling. A 68-read bin whose reads the aligner cannot
+    // anchor produces a zero-byte SAM, and variant calling on that fails — but the bin is a real
+    // observation about the sample, so it is emitted on its own channel rather than silently dropped.
+    ch_polished = OUROBOROS_POLISH.out.aligned.branch { meta, gene, ref, sam, reason ->
+        callable    : reason != 'no_alignments'
+        unalignable : true
+    }
+
     OUROBOROS_CALL(
-        OUROBOROS_POLISH.out.aligned,
+        ch_polished.callable.map { meta, gene, ref, sam, reason -> [ meta, gene, ref, sam ] },
         call_opts.min_variant_count,
         call_opts.min_variant_freq,
         call_opts.min_ins_freq,
@@ -107,5 +115,6 @@ workflow OUROBOROS_ASSEMBLE {
     amended_len   = OUROBOROS_CALL.out.amended_len     // channel: [ val(meta), val(gene), val(length) ]
     indels_folded = OUROBOROS_POLISH.out.indels_folded // channel: [ val(meta), val(gene), val(0|1) ]
     timings       = OUROBOROS_POLISH.out.timings       // channel: [ val(meta), val(gene), path(iter_timings.tsv) ]
+    unalignable   = ch_polished.unalignable.map { meta, gene, ref, sam, reason -> [ meta, gene, reason ] } // channel: [ val(meta), val(gene), val(reason) ]
     versions      = ch_versions                        // channel: [ path(versions.yml) ]
 }
