@@ -73,6 +73,12 @@ process OUROBOROS_POLISH {
     BEST_SCORE=""
     INDELS_FOLDED=0
     PREV_SCORE=""
+
+    # Seed the outputs from the input reference so they always exist. A degenerate bin — too few reads,
+    # or reads too divergent for the aligner to anchor — may never produce a usable iteration, and that
+    # is a real result to report, not a reason to fail the run and take the whole cohort with it.
+    cp "\$REF" polished.ref
+    : > polished.sam
     printf 'iter\\tseconds\\tscore\\tconverged\\treason\\n' > iter_timings.tsv
 
     for iter in \$(seq 1 ${max_iter}); do
@@ -103,6 +109,18 @@ process OUROBOROS_POLISH {
 
         # folded is OR-accumulated: ANY iteration folding an indel marks the bin for the stitch gate.
         [ "\$(cat indel.flag)" != "0" ] && INDELS_FOLDED=1
+
+        # GUARD: if this iteration aligned nothing, the amended reference comes back empty. Feeding that
+        # to the next iteration's aligner is what actually fails ("no reference found"), so stop here and
+        # keep the last good reference. Seen for real on a 68-read bin where the seeded aligner returned
+        # every read unmapped while exhaustive SW aligned them — so this is a live path, not a theoretical one.
+        if ! grep -q '[ACGTNacgtn]' next_\${iter}.ref 2>/dev/null; then
+            DONE=1
+            REASON=no_alignments
+            t1=\$(date +%s)
+            printf '%s\\t%s\\t%s\\t%s\\t%s\\n' "\$iter" "\$(( t1 - t0 ))" "\$SCORE" "\$DONE" "\$REASON" >> iter_timings.tsv
+            break
+        fi
 
         # ── track the BEST-scoring iteration: its (ref, sam) is what CALL consumes ──────────────────
         if [ -z "\$BEST_SCORE" ] || [ "\$SCORE" -gt "\$BEST_SCORE" ]; then
