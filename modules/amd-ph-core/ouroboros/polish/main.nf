@@ -26,6 +26,22 @@
 // wall, while the sequential rounds it replaces are ~36%. Both aligners thread internally (local_sw
 // rayon, rammap -t) and their kernels are SIMD, so the parallelism moves rather than disappears —
 // from chunks-across-tasks to bins-across-tasks plus threads within.
+//
+// Aligner choice (ADR-0015)
+// -------------------------
+// RAMMAP is the default. A seven-aligner sweep found six of seven produce the same consensus within
+// 1-3 bases at EVERY depth: the plurality-refinement loop converges to the same fixpoint regardless of
+// how reads were placed, so the loop -- not the aligner -- determines the answer. rammap ties for
+// fastest at 10.5x over local_sw with re-indexing included.
+//
+// LOCALSW is kept for one specific job: the sub-5% minority-variant layer, where the two genuinely
+// differ (300 vs 103 calls at full depth on one bin, every difference below 5% frequency). That is a
+// use-case switch, not something the pipeline can infer.
+//
+// bwa, bwa-mem2, minibwa and bowtie2 were evaluated and deliberately NOT adopted -- they match rammap's
+// consensus and are slower or equal, and bowtie2 --end-to-end is actively worse (21 wrong bases where
+// every other aligner has 0, because it maps 33% of reads where --local maps 96%). The evaluation
+// harness at ~/wip/ouroboros/aligner-eval retains them for re-testing on a new assay.
 
 process OUROBOROS_POLISH {
     tag "${meta.id}_${gene}"
@@ -62,9 +78,9 @@ process OUROBOROS_POLISH {
     // 1-based SAM column holding AS:i:, MEASURED per aligner rather than assumed — tag order differs
     // and a wrong column makes win_score() fall back to the CIGAR M-count silently.
     //   bowtie2 (both modes) 12 | minibwa 13 | bwa / bwa-mem2 / rammap 14 | local_sw 12 (default)
-    def AS_COL = [ RAMMAP:14, BWA:14, BWAMEM2:14, MINIBWA:13, BOWTIE2_LOCAL:12, BOWTIE2_E2E:12 ]
+    def AS_COL = [ RAMMAP:14 ]          // local_sw's AS is column 12, winnow_pileup's default
     def sf = AS_COL.containsKey(o.aligner) ? "--score-field ${AS_COL[o.aligner]}" : ''
-    def known = ['LOCALSW','RAMMAP','BWA','BWAMEM2','MINIBWA','BOWTIE2_LOCAL','BOWTIE2_E2E']
+    def known = ['RAMMAP','LOCALSW']
     if (!known.contains(o.aligner)) {
         error "OUROBOROS_POLISH: unknown aligner '${o.aligner}'. Known: ${known.join(', ')}"
     }
@@ -105,27 +121,6 @@ process OUROBOROS_POLISH {
                 ${task.cpus} ${o.term_ext} > raw_\${iter}.sam ;;
           RAMMAP)
             rammap -a -x sr --secondary no -t ${task.cpus} "\$REF" reads.fastq > raw_\${iter}.sam 2>/dev/null ;;
-          BOWTIE2_LOCAL|BOWTIE2_E2E)
-            bowtie2-build -q --threads ${task.cpus} "\$REF" bt2_\${iter} > /dev/null 2>&1
-            ti=\$(date +%s)
-            MODE=--local; [ "${o.aligner}" = "BOWTIE2_E2E" ] && MODE=--end-to-end
-            bowtie2 \$MODE -p ${task.cpus} -x bt2_\${iter} -U reads.fastq -S raw_\${iter}.sam 2>/dev/null
-            rm -f bt2_\${iter}.*.bt2 ;;
-          BWA)
-            cp "\$REF" bwaref_\${iter}.fa && bwa index bwaref_\${iter}.fa > /dev/null 2>&1
-            ti=\$(date +%s)
-            bwa mem -t ${task.cpus} bwaref_\${iter}.fa reads.fastq > raw_\${iter}.sam 2>/dev/null
-            rm -f bwaref_\${iter}.fa.* ;;
-          BWAMEM2)
-            cp "\$REF" bwaref_\${iter}.fa && bwa-mem2 index bwaref_\${iter}.fa > /dev/null 2>&1
-            ti=\$(date +%s)
-            bwa-mem2 mem -t ${task.cpus} bwaref_\${iter}.fa reads.fastq > raw_\${iter}.sam 2>/dev/null
-            rm -f bwaref_\${iter}.fa.* ;;
-          MINIBWA)
-            cp "\$REF" mbref_\${iter}.fa && minibwa index mbref_\${iter}.fa > /dev/null 2>&1
-            ti=\$(date +%s)
-            minibwa mem -t ${task.cpus} mbref_\${iter}.fa reads.fastq > raw_\${iter}.sam 2>/dev/null
-            rm -f mbref_\${iter}.fa.* ;;
         esac
         talign=\$(date +%s)
 
