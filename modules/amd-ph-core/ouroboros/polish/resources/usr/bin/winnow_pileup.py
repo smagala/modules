@@ -42,7 +42,11 @@ SF = 0 if (a.score_field is None or a.score_field < 0) else (a.score_field - 12 
 QNAME, FLAG, RNAME, POS, CIGAR, SEQ, QUAL, TAGS = 0, 1, 2, 3, 5, 9, 10, 11
 REVERSE_FLAG = 16   # BAM FLAG bit 0x10 = read reverse-strand
 
-AS_RE = re.compile(r"AS:\w:(\d+)")
+# NOTE: the minus is required. bowtie2 --end-to-end emits NEGATIVE alignment scores (AS:i:-10,
+# 0 = perfect); without it the match fails and win_score() silently falls back to the CIGAR M-count,
+# quietly substituting a different quantity for the convergence objective. Positive scores match
+# exactly as before, so this is behaviour-preserving for local_sw/rammap/bwa.
+AS_RE = re.compile(r"AS:\w:(-?\d+)")
 CIG_RE = re.compile(r"(\d+)([MIDNSHP])")
 ANNOT_RE = re.compile(r"^([^{]+)\{[^}]*\}")
 COMPLEX_INDEL = re.compile(r"\d\d+[DI]\d+M+")
@@ -155,7 +159,13 @@ def flush_query():
     if cur_rec is None:
         return
     tmp.write(cur_rec + "\n")
-    total_as += int(cur_f[TAGS].split(":")[2])   # score_sam.py: sum the col-12 AS value
+    # BUG FIX: this summed column 12 unconditionally, ignoring --score-field. win_score() honours the
+    # flag when PICKING the best record per read, but the reported total did not — so for any aligner
+    # whose AS tag is not in column 12 the loop's convergence objective was whatever sat there instead.
+    # For rammap/bwa/bwa-mem2/minibwa that is NM (edit distance), and because the caller selects the
+    # HIGHEST-scoring iteration, the loop was preferring the iteration with the MOST mismatches.
+    # cur_score is already the win_score of the record being flushed, so use it.
+    total_as += cur_score
     pileup(cur_f, cur_rev)
 
 # stream the input SAM(s) in order. With --in-sams we read the raw chunk SAMs directly (each carries its

@@ -59,7 +59,15 @@ process OUROBOROS_POLISH {
     // local_sw takes the gap-OPEN penalty exclusive of the first extension; IRMA's convention is
     // inclusive, so the first extension is subtracted here rather than by the caller.
     def go = (o.sw_gap_open as int) - (o.sw_gap_extend as int)
-    def sf = (o.aligner == 'RAMMAP') ? '--score-field 14' : ''
+    // 1-based SAM column holding AS:i:, MEASURED per aligner rather than assumed — tag order differs
+    // and a wrong column makes win_score() fall back to the CIGAR M-count silently.
+    //   bowtie2 (both modes) 12 | minibwa 13 | bwa / bwa-mem2 / rammap 14 | local_sw 12 (default)
+    def AS_COL = [ RAMMAP:14, BWA:14, BWAMEM2:14, MINIBWA:13, BOWTIE2_LOCAL:12, BOWTIE2_E2E:12 ]
+    def sf = AS_COL.containsKey(o.aligner) ? "--score-field ${AS_COL[o.aligner]}" : ''
+    def known = ['LOCALSW','RAMMAP','BWA','BWAMEM2','MINIBWA','BOWTIE2_LOCAL','BOWTIE2_E2E']
+    if (!known.contains(o.aligner)) {
+        error "OUROBOROS_POLISH: unknown aligner '${o.aligner}'. Known: ${known.join(', ')}"
+    }
     def mut_opt = (o.mut_min_strand_frac as float) > 0 ? "--mut-min-strand-frac ${o.mut_min_strand_frac}" : ''
     """
     set -e
@@ -79,7 +87,7 @@ process OUROBOROS_POLISH {
     # is a real result to report, not a reason to fail the run and take the whole cohort with it.
     cp "\$REF" polished.ref
     : > polished.sam
-    printf 'iter\\tseconds\\tscore\\tconverged\\treason\\n' > iter_timings.tsv
+    printf 'iter\\tseconds\\tindex_s\\talign_s\\tscore\\tconverged\\treason\\n' > iter_timings.tsv
 
     for iter in \$(seq 1 ${max_iter}); do
         t0=\$(date +%s)
@@ -87,12 +95,39 @@ process OUROBOROS_POLISH {
         REASON=not_converged
 
         # ── ALIGN (threaded over this bin's reads; the SW kernel is itself SIMD) ────────────────────
-        if [ "${o.aligner}" = "RAMMAP" ]; then
-            rammap -a -x sr --secondary no -t ${task.cpus} "\$REF" reads.fastq > raw_\${iter}.sam 2>/dev/null
-        else
+        # The index-based aligners must REBUILD their index every iteration, because the reference is
+        # what the loop is changing. That cost is timed separately so the "loop with reindexing"
+        # question has a number rather than an estimate.
+        ti=\$(date +%s)
+        case "${o.aligner}" in
+          LOCALSW)
             local_sw "\$REF" reads.fastq ${o.sw_match} ${o.sw_mismatch} ${go} ${o.sw_gap_extend} \\
-                ${task.cpus} ${o.term_ext} > raw_\${iter}.sam
-        fi
+                ${task.cpus} ${o.term_ext} > raw_\${iter}.sam ;;
+          RAMMAP)
+            rammap -a -x sr --secondary no -t ${task.cpus} "\$REF" reads.fastq > raw_\${iter}.sam 2>/dev/null ;;
+          BOWTIE2_LOCAL|BOWTIE2_E2E)
+            bowtie2-build -q --threads ${task.cpus} "\$REF" bt2_\${iter} > /dev/null 2>&1
+            ti=\$(date +%s)
+            MODE=--local; [ "${o.aligner}" = "BOWTIE2_E2E" ] && MODE=--end-to-end
+            bowtie2 \$MODE -p ${task.cpus} -x bt2_\${iter} -U reads.fastq -S raw_\${iter}.sam 2>/dev/null
+            rm -f bt2_\${iter}.*.bt2 ;;
+          BWA)
+            cp "\$REF" bwaref_\${iter}.fa && bwa index bwaref_\${iter}.fa > /dev/null 2>&1
+            ti=\$(date +%s)
+            bwa mem -t ${task.cpus} bwaref_\${iter}.fa reads.fastq > raw_\${iter}.sam 2>/dev/null
+            rm -f bwaref_\${iter}.fa.* ;;
+          BWAMEM2)
+            cp "\$REF" bwaref_\${iter}.fa && bwa-mem2 index bwaref_\${iter}.fa > /dev/null 2>&1
+            ti=\$(date +%s)
+            bwa-mem2 mem -t ${task.cpus} bwaref_\${iter}.fa reads.fastq > raw_\${iter}.sam 2>/dev/null
+            rm -f bwaref_\${iter}.fa.* ;;
+          MINIBWA)
+            cp "\$REF" mbref_\${iter}.fa && minibwa index mbref_\${iter}.fa > /dev/null 2>&1
+            ti=\$(date +%s)
+            minibwa mem -t ${task.cpus} mbref_\${iter}.fa reads.fastq > raw_\${iter}.sam 2>/dev/null
+            rm -f mbref_\${iter}.fa.* ;;
+        esac
+        talign=\$(date +%s)
 
         # ── WINNOW + PILEUP + SCORE (one streaming pass, no concatenated intermediate SAM) ──────────
         SCORE=\$(winnow_pileup.py ${sf} "\$REF" win_\${iter}.sam pileup_\${iter}.json --in-sams raw_\${iter}.sam)
@@ -118,7 +153,8 @@ process OUROBOROS_POLISH {
             DONE=1
             REASON=no_alignments
             t1=\$(date +%s)
-            printf '%s\\t%s\\t%s\\t%s\\t%s\\n' "\$iter" "\$(( t1 - t0 ))" "\$SCORE" "\$DONE" "\$REASON" >> iter_timings.tsv
+            printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "\$iter" "\$(( t1 - t0 ))" \\
+                "\$(( ti - t0 ))" "\$(( talign - ti ))" "\$SCORE" "\$DONE" "\$REASON" >> iter_timings.tsv
             break
         fi
 
@@ -139,7 +175,8 @@ process OUROBOROS_POLISH {
         fi
 
         t1=\$(date +%s)
-        printf '%s\\t%s\\t%s\\t%s\\t%s\\n' "\$iter" "\$(( t1 - t0 ))" "\$SCORE" "\$DONE" "\$REASON" >> iter_timings.tsv
+        printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "\$iter" "\$(( t1 - t0 ))" \\
+            "\$(( ti - t0 ))" "\$(( talign - ti ))" "\$SCORE" "\$DONE" "\$REASON" >> iter_timings.tsv
 
         PREV_SCORE=\$SCORE
         REF=next_\${iter}.ref
@@ -163,7 +200,7 @@ process OUROBOROS_POLISH {
     touch polished.ref polished.sam
     INDELS_FOLDED=0
     CONVERGE_REASON=reference_stable
-    printf 'iter\\tseconds\\tscore\\tconverged\\treason\\n1\\t0\\t0\\t1\\treference_stable\\n' > iter_timings.tsv
+    printf 'iter\\tseconds\\tindex_s\\talign_s\\tscore\\tconverged\\treason\\n1\\t0\\t0\\t0\\t0\\t1\\treference_stable\\n' > iter_timings.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
