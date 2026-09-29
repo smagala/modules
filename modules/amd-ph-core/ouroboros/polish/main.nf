@@ -103,6 +103,9 @@ process OUROBOROS_POLISH {
     def carryunc = o.get('carry_uncovered', false).toString().toLowerCase() == 'true' ? '--carry-uncovered' : ''
     """
     set -e
+    # Round/iteration state is rewritten in place on every pass, so clobbering is intended here; the
+    # nf-core template runs tasks under `bash -C` (noclobber), which would fail the second pass.
+    set +C
 
     # Inflate ONCE. The reads are iteration-invariant — only the reference moves — so inflating inside
     # the loop would repeat the same expansion every round. Depth from here on is TRUE per-read depth.

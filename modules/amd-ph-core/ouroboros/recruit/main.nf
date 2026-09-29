@@ -116,6 +116,9 @@ process OUROBOROS_RECRUIT {
                         ? "--min-ref-depth ${o.min_column_coverage}" : ''
     """
     set -e
+    # Round/iteration state is rewritten in place on every pass, so clobbering is intended here; the
+    # nf-core template runs tasks under `bash -C` (noclobber), which would fail the second pass.
+    set +C
 
     # Round state lives in this task's own working directory. There is no instate/outstate handoff,
     # because there is no task boundary between rounds: REFS and READS advance each iteration, and the
