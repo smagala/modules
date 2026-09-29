@@ -1,0 +1,73 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "genotype_call"
+description: |
+  Turn tabular BLAST hits into one genotype call per query.
+
+  Knows nothing about any pathogen. Whether a call is a "lineage", a "clade" or a "serotype" is
+  decided by the naming in the database that was searched, which is an input. The only judgement
+  this module makes is how much better the best subject is than the next-best DIFFERENT subject,
+  and whether that margin is large enough to commit to.
+
+  A typing database is dense on purpose, so the top two subjects are frequently close and a bare
+  argmax turns a coin-flip into a confident-looking answer. Every row therefore carries the
+  runner-up and the margin, and anything inside `tie_margin` is labelled `ambiguous`.
+
+  Multi-HSP hits are aggregated per (query, subject): bitscores are summed and aligned length is
+  summed over the UNION of query intervals so overlapping HSPs are not double-counted. Scoring only
+  the best HSP would under-report coverage and support for exactly the subjects that match best over
+  their full length.
+keywords:
+  - genotype
+  - typing
+  - lineage
+  - blast
+  - call
+tools:
+  - "genotype_call.py":
+      description: "Aggregates BLAST HSPs per subject, ranks by summed bitscore, and reports the best call with its runner-up and margin. Ships in this module's resources/usr/bin."
+      homepage: "https://github.com/cdcent/oamd-bio-ouroboros"
+      documentation: "https://github.com/cdcent/oamd-bio-ouroboros"
+      licence: ["Apache-2.0"]
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information e.g. `[ id:'sample1' ]`
+    - hits:
+        type: file
+        description: |
+          Tabular BLAST output (`-outfmt 6`) whose column layout matches `genotype_opts.columns`.
+          The parser validates the field count and names and fails on the first mismatching line
+          rather than mis-parsing silently.
+        pattern: "*.{txt,tsv}"
+  - - genotype_opts:
+        type: map
+        description: |
+          Call settings, all optional:
+            columns     - outfmt 6 field names in file order. Must include qseqid, sseqid, pident,
+                          length, qstart, qend, qlen and bitscore. Default:
+                          'qseqid sseqid pident length qstart qend qlen slen bitscore'
+            min_pident  - drop HSPs below this percent identity (default 0.0)
+            min_qcov    - drop a subject below this aggregated query coverage, 0-1 (default 0.0)
+            tie_margin  - relative bitscore margin below which a call is `ambiguous` (default 0.02)
+output:
+  - calls:
+      - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information e.g. `[ id:'sample1' ]`
+      - "*.genotype.tsv":
+          type: file
+          description: |
+            One row per query: sample, query, subject, pident, qcov, bitscore, runnerup,
+            runnerup_bitscore, margin, call. `call` is confident / ambiguous / no_hit. A query with
+            no surviving hit produces a `no_hit` row rather than being dropped, so an empty result
+            is distinguishable from a step that did not run.
+          pattern: "*.genotype.tsv"
+# No versions.yml. This module reports to the `versions` TOPIC as a (process, tool, version)
+# tuple, matching the nf-core blast modules it runs alongside.
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

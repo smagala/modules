@@ -33,7 +33,7 @@ workflow OUROBOROS_ASSEMBLE {
     max_iter     // value:   safety cap on polish iterations; convergence normally stops the loop first
 
     main:
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     // Validate the option maps here so a typo fails with its key name rather than surfacing as a null
     // interpolated into a task script. Maps rather than ~26 positional values: at that arity positional
@@ -44,8 +44,8 @@ workflow OUROBOROS_ASSEMBLE {
                           'min_variant_qual', 'min_column_coverage', 'min_confidence', 'sig_level',
                           'auto_freq', 'min_ambig_freq', 'seg_numbers', 'sort_groups', 'caller',
                           'refchg', 'sor', 'amend_indels', 'refchg_min_strand_frac']
-    def missing_align = required_align.findAll { !align_opts.containsKey(it) }
-    def missing_call  = required_call.findAll  { !call_opts.containsKey(it) }
+    def missing_align = required_align.findAll { k -> !align_opts.containsKey(k) }
+    def missing_call  = required_call.findAll  { k -> !call_opts.containsKey(k) }
     if (missing_align) {
         error "OUROBOROS_ASSEMBLE: align_opts is missing required key(s): ${missing_align.join(', ')}"
     }
@@ -60,13 +60,13 @@ workflow OUROBOROS_ASSEMBLE {
     // Route bins that aligned nothing away from calling. A 68-read bin whose reads the aligner cannot
     // anchor produces a zero-byte SAM, and variant calling on that fails — but the bin is a real
     // observation about the sample, so it is emitted on its own channel rather than silently dropped.
-    ch_polished = OUROBOROS_POLISH.out.aligned.branch { meta, gene, ref, sam, reason ->
+    ch_polished = OUROBOROS_POLISH.out.aligned.branch { _meta, _gene, _ref, _sam, reason ->
         callable    : reason != 'no_alignments'
         unalignable : true
     }
 
     OUROBOROS_CALL(
-        ch_polished.callable.map { meta, gene, ref, sam, reason -> [ meta, gene, ref, sam ] },
+        ch_polished.callable.map { meta, gene, ref, sam, _reason -> [ meta, gene, ref, sam ] },
         call_opts.min_variant_count,
         call_opts.min_variant_freq,
         call_opts.min_ins_freq,
@@ -115,6 +115,6 @@ workflow OUROBOROS_ASSEMBLE {
     amended_len   = OUROBOROS_CALL.out.amended_len     // channel: [ val(meta), val(gene), val(length) ]
     indels_folded = OUROBOROS_POLISH.out.indels_folded // channel: [ val(meta), val(gene), val(0|1) ]
     timings       = OUROBOROS_POLISH.out.timings       // channel: [ val(meta), val(gene), path(iter_timings.tsv) ]
-    unalignable   = ch_polished.unalignable.map { meta, gene, ref, sam, reason -> [ meta, gene, reason ] } // channel: [ val(meta), val(gene), val(reason) ]
+    unalignable   = ch_polished.unalignable.map { meta, gene, _ref, _sam, reason -> [ meta, gene, reason ] } // channel: [ val(meta), val(gene), val(reason) ]
     versions      = ch_versions                        // channel: [ path(versions.yml) ]
 }

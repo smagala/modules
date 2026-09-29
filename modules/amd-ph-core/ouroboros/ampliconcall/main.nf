@@ -42,7 +42,18 @@ process OUROBOROS_AMPLICONCALL {
 
     # The FULL-length panel record for this gene: the genome-coordinate anchor. The record ID is the
     # gene/bin label, which is what makes reference-framed reporting possible downstream (ADR-0014).
-    awk -v g="${gene}" '/^>/{split(substr(\$0,2),a," "); p=(a[1]==g)} p' ${refs} > ${gene}.ref
+    # Match on the BIN, read from the defline's `bin=` tag. Record ids are accessions, so comparing
+    # an id against a gene name never matches; a record with no `bin=` tag is its own bin, which is
+    # what the refined per-gene references the gather loop writes need. This previously compared a
+    # `{Sxx}`-suffixed id against the gene, emitted an EMPTY .ref and still exited 0 — the failure
+    # only surfaced downstream in STITCH.
+    awk -v g="${gene}" '/^>/{ n=split(substr(\$0,2),a," "); b=a[1];
+                              for(i=2;i<=n;i++) if(a[i] ~ /^bin=/) b=substr(a[i],5);
+                              p=(b==g) } p' ${refs} > ${gene}.ref
+    if [ ! -s "${gene}.ref" ]; then
+        echo "ERROR: no panel record for bin ${gene} in ${refs}" >&2
+        exit 1
+    fi
 
     # Map the inflated reads to the full reference, sort and index: the island BAM.
     rammap -a -x sr -t ${task.cpus} ${gene}.ref ${gene}.fastq 2>/dev/null \\

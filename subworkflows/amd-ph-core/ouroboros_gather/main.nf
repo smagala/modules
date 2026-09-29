@@ -33,7 +33,7 @@ workflow OUROBOROS_GATHER {
     max_rounds      // value:   safety cap on recruit rounds
 
     main:
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     if (recruit_opts.gather_aligner == 'NONE') {
         error "OUROBOROS_GATHER: gather_aligner = 'NONE' produces no refined references, so assembly " +
@@ -69,10 +69,11 @@ workflow OUROBOROS_GATHER {
 
     emit:
     per_gene = ch_per_gene                                                // channel: [ val(meta), val(gene), path(sorted_fas), path(refined_ref), path(deflation) ]
-    ref_set  = ch_reads_refs.map { meta, reads, refs -> [ meta, refs ] }  // channel: [ val(meta), path(panel_ref_set) ]
+    ref_set  = ch_reads_refs.map { meta, _reads, refs -> [ meta, refs ] }  // channel: [ val(meta), path(panel_ref_set) ]
     chimeric   = OUROBOROS_RECRUIT.out.chimeric                           // channel: [ val(meta), path(chimeric.fa) ]
     nomatch    = OUROBOROS_RECRUIT.out.nomatch                            // channel: [ val(meta), path(nomatch.fa) ] — the unrecruited fraction behind every reported depth
     sort_stats = OUROBOROS_RECRUIT.out.sort_stats                         // channel: [ val(meta), path(sorted_read_stats.txt) ]
     timings  = OUROBOROS_RECRUIT.out.timings                              // channel: [ val(meta), path(round_timings.tsv) ]
-    versions = ch_versions                                                // channel: [ path(versions.yml) ]
+    collapse = OUROBOROS_RECRUIT.out.collapse                             // channel: [ val(meta), path(R*.collapse.tsv) ] — only when collapse_groups is set
+    versions = ch_versions                                              // channel: [ path(versions.yml) ]
 }

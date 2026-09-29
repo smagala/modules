@@ -33,7 +33,23 @@ process OUROBOROS_GENOMEREPORT {
     for c in ${consensuses}; do
         [ "\$c" = "${panel_ref}" ] && continue
         tg=\$(head -1 "\$c" | sed 's/^>//; s/[ \\t].*//')
-        awk -v n="\$tg" '/^>/{p=(\$0==">"n || \$0 ~ "^>"n"[ \\t]")} p' ${panel_ref} > "\$tg.ref.fa"
+        # Match on the record id with its `{Sxx}` variant suffix STRIPPED. The consensus header is a
+        # bin/gene name (`..._khatangaense_L`) while the panel writes competing variants as
+        # `..._khatangaense_L{S01}`, so an exact-or-prefix compare matched nothing, wrote an empty
+        # ref.fa, and left rammap emitting a headerless SAM. That is why identity_to_ref and
+        # aligned_frac have been NA/0.00 on every row this module has ever produced — and why
+        # pct_called silently fell back to the unbounded called/ref_len denominator.
+        #
+        # EVERY record of the bin, not just the first. A bin holds competing variants precisely
+        # because one of them fits the sample and the others do not, and the assembly was built
+        # against whichever won — so measuring identity against the bin's first record measures the
+        # wrong sequence. It reported khatangaense_L at 81.7% (vs NC_055196) when the assembly is
+        # 100.0% to MK352484, and West Nile at 78.8% when it is 99.8% to EF429197. That made 25 of
+        # 85 rows look like sub-90% "nearest neighbour" calls when only 5 are. Emitting all records
+        # lets rammap pick the best and identity_to_ref resolve per alignment.
+        awk -v n="\$tg" '/^>/{ k=split(substr(\$0,2),a," "); b=a[1];
+                               for(i=2;i<=k;i++) if(a[i] ~ /^bin=/) b=substr(a[i],5);
+                               p=(b==n) } p' ${panel_ref} > "\$tg.ref.fa"
         rammap -a --eqx "\$tg.ref.fa" "\$c" 2>/dev/null > "\$tg.sam" || : > "\$tg.sam"
     done
 

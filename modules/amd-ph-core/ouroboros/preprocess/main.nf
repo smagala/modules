@@ -14,9 +14,13 @@ process OUROBOROS_PREPROCESS {
     container 'oamd-bio-python:3.12-orb'
 
     input:
-    tuple val(meta), path(reads)
+    // min_len rides in the tuple rather than arriving as a broadcast `val` because it is now
+    // derived PER SAMPLE from that sample's own length distribution (see SEQKIT_STATS). A `val`
+    // input is one value for the whole run, which is exactly the assumption that put IRMA's
+    // 2x150 flu default onto a pre-trimmed library. ph-core forbids custom meta keys, so the
+    // per-sample value travels as a tuple element -- the same shape SEQTK_SAMPLE already uses.
+    tuple val(meta), path(reads), val(min_len)
     val qual_threshold
-    val min_len
     val use_median
     val adapter
 

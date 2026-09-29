@@ -37,6 +37,26 @@ _OPTS = {
     # 0 = off (no-op / parity). Both gate ONLY positions where plurality != reference.
     "--mut-min-depth": ("mutMinDepth", True, int),
     "--mut-min-strand-frac": ("mutMinStrandFrac", True, float),
+    # Emit 'N' at columns with NO coverage instead of dropping them. Off by default for IRMA parity.
+    # --min-depth already masks thin columns to 'N'; without this, a ZERO-depth column is the one
+    # case that silently vanishes, so a coverage gap shortens the reference and shifts every
+    # downstream coordinate. 'N' = unknown, '-' = known absent: only the latter should change length.
+    "--mask-uncovered": ("maskUncovered", False, None),
+    # Keep the REFERENCE base at columns with no coverage, instead of 'N'. Off by default.
+    #
+    # The reference this script emits is two things at once: the alignment target for the next
+    # polish iteration, and (via the best-scoring copy) the reference CALL reports against. 'N'
+    # is right for the second job and fatal for the first -- nothing aligns to 'N', so a window
+    # that loses coverage once can never regain it, however much the rest of the reference
+    # improves. Measured on a lyssavirus cohort 2026-08-31: an N run erodes by about one read
+    # length from each flank and then stalls (716 -> 566 bp over twenty iterations), stranding
+    # reads that align right up to the edge and are then soft-clipped.
+    #
+    # With this flag the column keeps real sequence so reads can still anchor there, and the
+    # masking moves downstream where it belongs: CALL's --min-consensus-depth decides what is
+    # reported. USE THE TWO TOGETHER. On its own this flag will report reference bases at
+    # positions with no evidence, which is worse than the hole it fixes.
+    "--carry-uncovered": ("carryUncovered", False, None),
     # Write "1" (an insertion or deletion was folded into the consensus this round) or "0" to PATH.
     # The authoritative signal for the stitch gate: a folded deletion is exactly what creates the
     # assembly-gap column stitch re-anchors / recovers; a folded insertion diverges length too. When
@@ -48,6 +68,7 @@ _OPTS = {
 def parse_args(argv):
     o = {"name": None, "insT": 0.15, "delT": 0.75, "insD": 1, "delD": 1,
          "altT": 2.0, "altC": LONG_MAX, "mark_del": False, "minEdge": 0, "minDepth": 0,
+         "maskUncovered": False, "carryUncovered": False,
          "mutMinDepth": 0, "mutMinStrandFrac": 0.0, "indelFlagFile": None}
     pos = []
     i = 0
@@ -114,7 +135,8 @@ def main():
     mut_min_depth = max(0, int(o.get("mutMinDepth", 0)))
     mut_min_sf = max(0.0, float(o.get("mutMinStrandFrac", 0.0)))
     guard_on = mut_min_depth > 0 or mut_min_sf > 0
-    ref_seq = first_ref_seq(ref_path) if guard_on else None
+    # --carry-uncovered needs the reference bases too, not just the mutation guard.
+    ref_seq = first_ref_seq(ref_path) if (guard_on or o.get("carryUncovered")) else None
 
     # aggregate
     big = [dict() for _ in range(N)]   # per pos: {base: count}
@@ -191,6 +213,25 @@ def main():
         for p in range(N):
             if cons[p] not in ("", "-") and totals[p] < minDepth:
                 cons[p] = "N"
+
+    # Uncovered columns: a zero-depth column has cons[p] == "" and would append nothing at output,
+    # deleting the position and shifting everything 3' of it. The depth mask above cannot reach it
+    # (it skips ""), so zero coverage is the one case that loses its marker. Mask it like any other
+    # unknown base, so the reference stays full-length and coordinate-anchored.
+    if o.get("maskUncovered"):
+        for p in range(N):
+            if cons[p] == "":
+                cons[p] = "N"
+
+    # Uncovered columns, kept ALIGNABLE. Runs after the mask above so --carry-uncovered wins when
+    # both are set: the two disagree only at zero-depth columns, and that disagreement is the
+    # whole point. Anything already masked to 'N' by --min-depth is left alone -- a thin column
+    # has evidence and was judged, an uncovered one was never seen.
+    if o.get("carryUncovered") and ref_seq is not None:
+        for p in range(N):
+            if (cons[p] in ("", "N") and p < len(ref_seq)
+                    and ref_seq[p] in "ACGT" and totals[p] == 0):
+                cons[p] = ref_seq[p]
 
     if name:
         header = ">" + name + "\n"

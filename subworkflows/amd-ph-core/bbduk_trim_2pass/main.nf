@@ -14,8 +14,8 @@ workflow BBDUK_TRIM_2PASS {
         primer_file  // channel: /path/to/primer.fasta
 
     main:
-        ch_versions      = Channel.empty()
-        ch_trimmed_reads = Channel.empty()
+        ch_versions      = channel.empty()
+        ch_trimmed_reads = channel.empty()
 
         BBDUK_TRIM_1(ch_reads, primer_file)
         BBDUK_TRIM_2(BBDUK_TRIM_1.out.reads, primer_file)

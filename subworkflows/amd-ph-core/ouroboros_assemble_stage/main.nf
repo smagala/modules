@@ -32,27 +32,27 @@ workflow OUROBOROS_ASSEMBLE_STAGE {
     amplicon_min_depth  // value:   depth at or above which a reference position is called rather than masked
 
     main:
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     OUROBOROS_ASSEMBLE( ch_per_gene, align_opts, call_opts, max_iter )
     ch_versions = ch_versions.mix( OUROBOROS_ASSEMBLE.out.versions.first() )
 
-    ch_sorted_by_gene = ch_per_gene.map { meta, gene, reads, ref, defl -> [ meta, gene, reads ] }
+    ch_sorted_by_gene = ch_per_gene.map { meta, gene, reads, _ref, _defl -> [ meta, gene, reads ] }
 
-    ch_amplicon_bam       = Channel.empty()
-    ch_amplicon_consensus = Channel.empty()
-    ch_amplicon_bed       = Channel.empty()
-    ch_stitched           = Channel.empty()
-    ch_relabelled         = Channel.empty()
-    ch_refpinned          = Channel.empty()
+    ch_amplicon_bam       = channel.empty()
+    ch_amplicon_consensus = channel.empty()
+    ch_amplicon_bed       = channel.empty()
+    ch_stitched           = channel.empty()
+    ch_relabelled         = channel.empty()
+    ch_refpinned          = channel.empty()
 
     if (amplicon_mode || stitch) {
         // Route each gene: run the full path only where it can change the output.
         ch_gene_route = OUROBOROS_ASSEMBLE.out.indels_folded
             .map { meta, gene, folded -> [ meta, gene, (amplicon_mode || (folded as int) != 0) ] }
 
-        ch_run_genes      = ch_gene_route.filter { meta, gene, run ->  run }.map { meta, gene, run -> [ meta, gene ] }
-        ch_relabel_genes  = ch_gene_route.filter { meta, gene, run -> !run }.map { meta, gene, run -> [ meta, gene ] }
+        ch_run_genes      = ch_gene_route.filter { _meta, _gene, run ->  run }.map { meta, gene, _run -> [ meta, gene ] }
+        ch_relabel_genes  = ch_gene_route.filter { _meta, _gene, run -> !run }.map { meta, gene, _run -> [ meta, gene ] }
 
         ch_amplicon_in = ch_sorted_by_gene
             .combine( ch_deflation, by: 0 )

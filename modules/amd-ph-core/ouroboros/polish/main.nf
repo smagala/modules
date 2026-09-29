@@ -66,7 +66,7 @@ process OUROBOROS_POLISH {
     script:
     def required = ['aligner', 'sw_match', 'sw_mismatch', 'sw_gap_open', 'sw_gap_extend', 'term_ext',
                     'ins_fold_freq', 'del_fold_freq', 'mut_min_strand_frac']
-    def missing = required.findAll { !align_opts.containsKey(it) }
+    def missing = required.findAll { k -> !align_opts.containsKey(k) }
     if (missing) {
         error "OUROBOROS_POLISH: align_opts is missing required key(s): ${missing.join(', ')}"
     }
@@ -84,7 +84,23 @@ process OUROBOROS_POLISH {
     if (!known.contains(o.aligner)) {
         error "OUROBOROS_POLISH: unknown aligner '${o.aligner}'. Known: ${known.join(', ')}"
     }
-    def mut_opt = (o.mut_min_strand_frac as float) > 0 ? "--mut-min-strand-frac ${o.mut_min_strand_frac}" : ''
+    // Both halves of the mutation guard. The depth half was previously never passed, so
+    // mut_min_depth stayed 0 and `too_thin` could never fire: a SINGLE read was enough to mutate the
+    // reference, and the mutation then propagated into every later iteration.
+    def mut_opt = ((o.mut_min_strand_frac as float) > 0 ? "--mut-min-strand-frac ${o.mut_min_strand_frac} " : '') +
+                  ((o.get('mut_min_depth', 0) as int) > 0 ? "--mut-min-depth ${o.mut_min_depth} " : '')
+    // Optional, defaults off, read with .get() so existing callers are byte-identical. Keeps
+    // zero-coverage columns as 'N' instead of dropping them, so the polished reference stays
+    // full-length and every downstream coordinate still refers to the same position.
+    // Coerce explicitly: a Nextflow CLI param arrives as the STRING "false", which is truthy in
+    // Groovy, so a plain truth test silently enables the flag when the caller asked for it off.
+    def maskunc = o.get('mask_uncovered', false).toString().toLowerCase() == 'true' ? '--mask-uncovered' : ''
+    // Keep the reference base at uncovered columns so the NEXT iteration can still align there.
+    // The reference this loop emits is both the alignment target and the reported reference, and
+    // 'N' is only right for the second job: once a window is N nothing anchors in it, so it can
+    // never recover. Pair with CALL's min_consensus_depth >= 1, which is what then decides the
+    // reported consensus -- alone, this flag reports reference bases with no evidence behind them.
+    def carryunc = o.get('carry_uncovered', false).toString().toLowerCase() == 'true' ? '--carry-uncovered' : ''
     """
     set -e
 
@@ -133,7 +149,7 @@ process OUROBOROS_POLISH {
             --name ${gene} \\
             --insertion-threshold ${o.ins_fold_freq} \\
             --deletion-threshold ${o.del_fold_freq} \\
-            ${mut_opt} \\
+            ${mut_opt} ${maskunc} ${carryunc} \\
             --indel-flag-file indel.flag \\
             pileup_\${iter}.json > next_\${iter}.ref
 

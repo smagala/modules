@@ -13,6 +13,45 @@ Significance = HSP length >= --min-len and %id >= --min-pid.
 import argparse, sys
 from collections import defaultdict
 
+
+# ── record id -> bin ──────────────────────────────────────────────────────────────
+# Duplicated verbatim across the ouroboros scripts: ph-core modules cannot share a
+# library. Keep the copies identical; if this changes, change them together.
+def load_bin_map(path):
+    """Record id -> bin label, read from `>ID bin=BIN` deflines in the reference FASTA.
+
+    Panel record ids are ACCESSIONS; the bin is carried in the defline rather than encoded in the
+    id. Deriving a bin by string surgery on the id is what made nine separate bugs silent — an
+    accession is not a prefix of a bin name, so a forgotten lookup now fails loudly instead of
+    quietly returning nothing.
+
+    A record with no `bin=` tag maps to ITSELF. That is not a fallback: the per-gene references the
+    gather loop writes from round 2 onward are already named for their bin, so identity is the
+    correct mapping for them. Every id in the FASTA is therefore present, and a target that is
+    absent from the map is a real error.
+    """
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            if not line.startswith(">"):
+                continue
+            parts = line[1:].split()
+            if not parts:
+                continue
+            rid = parts[0]
+            out[rid] = next((p[4:] for p in parts[1:] if p.startswith("bin=")), rid)
+    return out
+
+
+def bin_of(target, binmap):
+    """Bin for an alignment target. Raises rather than guessing — see load_bin_map."""
+    try:
+        return binmap[target]
+    except KeyError:
+        raise KeyError(
+            "target %r is not in the reference FASTA's bin map; the hit file and the reference "
+            "are out of step (%d records known)" % (target, len(binmap)))
+
 ap = argparse.ArgumentParser()
 ap.add_argument("--blast", required=True, help="blastn outfmt 6: qseqid sseqid pident length qstart qend sstart send sstrand bitscore")
 ap.add_argument("--query", required=True, help="query FASTA")
@@ -20,7 +59,11 @@ ap.add_argument("--out", required=True, help="output basename (writes .match/.cl
 ap.add_argument("--min-len", type=int, default=33)
 ap.add_argument("--min-pid", type=float, default=88.0)
 ap.add_argument("--incl-chim", action="store_true", help="keep chimeric reads in .match (INCL_CHIM)")
+ap.add_argument("--bin-map", required=True,
+                help="Reference FASTA whose deflines carry `bin=<label>`; maps hit targets "
+                     "(record ids) to bins. Required: a bin can no longer be parsed out of an id.")
 a = ap.parse_args()
+BINMAP = load_bin_map(a.bin_map)
 
 strands = defaultdict(lambda: defaultdict(set))   # rid -> target -> {plus,minus}
 nhsp = defaultdict(int)
@@ -35,7 +78,10 @@ with open(a.blast) as fh:
         sstrand, bits = f[8], float(f[9])
         if length < a.min_len or pid < a.min_pid:
             continue
-        tgt = tgt.split("{S")[0]  # strip {Sxx} subtype suffix if present
+        # BIN for this hit target, looked up from the reference FASTA's `bin=` deflines. The
+        # target is a record id (an accession in round 1, a bin-named refined ref later); deriving
+        # the bin by string surgery is the mistake that made nine bugs silent.
+        tgt = bin_of(tgt, BINMAP)
         strands[rid][tgt].add(sstrand)
         nhsp[rid] += 1
         if rid not in best or bits > best[rid][0]:

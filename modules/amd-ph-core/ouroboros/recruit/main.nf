@@ -46,6 +46,8 @@ process OUROBOROS_RECRUIT {
     tuple val(meta), path("chimeric.fa")           , emit: chimeric
     tuple val(meta), path("sorted_read_stats.txt") , emit: sort_stats
     tuple val(meta), path("round_timings.tsv")     , emit: timings
+    tuple val(meta), path("R*.defer.tsv")          , emit: deferred  , optional: true
+    tuple val(meta), path("R*.collapse.tsv")       , emit: collapse  , optional: true
     path "versions.yml"                            , emit: versions
 
     when:
@@ -60,7 +62,7 @@ process OUROBOROS_RECRUIT {
                     'min_recruit_patterns', 'sort_groups', 'ban_groups', 'secondary_min_depth',
                     'secondary_min_frac', 'min_ca', 'min_fa', 'skip_elongation', 'gather_position_bias',
                     'gather_del_type', 'min_column_coverage', 'gather_ref_floor']
-    def missing = required.findAll { !recruit_opts.containsKey(it) }
+    def missing = required.findAll { k -> !recruit_opts.containsKey(k) }
     if (missing) {
         error "OUROBOROS_RECRUIT: recruit_opts is missing required key(s): ${missing.join(', ')}"
     }
@@ -77,6 +79,35 @@ process OUROBOROS_RECRUIT {
                         : ((o.secondary_min_frac && (o.secondary_min_frac as float) > 0)
                             ? "--secondary-frac ${o.secondary_min_frac} --secondary-floor ${o.min_ca}"
                             : '')
+    // Ambiguity deferral is OPTIONAL and defaults off, so it is read with .get() rather than added to
+    // the required-key list — existing callers keep byte-identical behaviour without being edited.
+    // Only the rammap MATCH path has it; the BLAST path is untouched.
+    def defer     = o.get('defer_ambiguous', false)
+                        ? "--defer-ambiguous --margin-matches ${o.get('margin_matches', 2)} " +
+                          "--margin-frac ${o.get('margin_frac', 0.02)} --defer-report R\${round}.defer.tsv"
+                        : ''
+    // Optional, defaults off, read with .get() like defer_ambiguous so existing callers are
+    // unchanged. \$REFS and the round's hit file resolve in the script body.
+    def cgroups   = o.get('collapse_groups', null)
+    def collapse  = ''
+    if (cgroups) {
+        def gl = (cgroups instanceof CharSequence) ? [cgroups as String] : (cgroups as List)
+        def hitsFile = o.match_aligner == 'BLAST' ? 'hits.tsv' : 'hits.paf'
+        def hitsFmt  = o.match_aligner == 'BLAST' ? 'blast6'    : 'paf'
+        collapse = gl.collect { "--collapse-group '${it}'" }.join(' ') +
+                   " --hits ${hitsFile} --hits-format ${hitsFmt}" +
+                   " --hits-min-len ${o.blast_min_hsp_len} --hits-min-pid ${o.blast_min_hsp_pid}" +
+                   " --breadth-min-depth ${o.get('collapse_breadth_min_depth', 1)}" +
+                   " --breadth-tol ${o.get('collapse_breadth_tol', 0.02)}" +
+                   " --collapse-min-breadth-frac ${o.get('collapse_min_breadth_frac', 0.5)}" +
+                   " --collapse-warn-breadth ${o.get('collapse_warn_breadth', 0.50)}" +
+                   " --collapse-on-suspect ${o.get('collapse_on_suspect', 'skip')}" +
+                   " --collapse-report R\${round}.collapse.tsv"
+        // Breadth needs per-target lengths; the secondary gate may already have passed --ref-fasta.
+        if (!sec.contains('--ref-fasta')) {
+            collapse = "--ref-fasta \$REFS " + collapse
+        }
+    }
     def elo       = o.skip_elongation ? '--skip-elongation' : ''
     def tw        = o.gather_position_bias ? 3 : 0
     def del_ambig = o.gather_del_type == 'NNN' ? '--delete-by-ambiguity' : ''
@@ -120,6 +151,7 @@ process OUROBOROS_RECRUIT {
                 -dust ${o.blast_dust} -evalue ${o.blast_evalue} -max_target_seqs 7 \\
                 -outfmt "6 qseqid sseqid pident length qstart qend sstart send sstrand bitscore" > hits.tsv 2>/dev/null
             blast_match.py --blast hits.tsv --query "\$READS" --out R\${round} \\
+                --bin-map "\$REFS" \\
                 --min-len ${o.blast_min_hsp_len} --min-pid ${o.blast_min_hsp_pid} ${incl}
             rm -f mdb.*
         else
@@ -127,7 +159,8 @@ process OUROBOROS_RECRUIT {
                 --chimera-min-len ${o.blast_min_hsp_len} --chimera-min-pid ${o.blast_min_hsp_pid} \\
                 -t ${task.cpus} "\$REFS" "\$READS" > hits.paf 2>/dev/null
             rammap_partition.py --paf hits.paf --query "\$READS" --out R\${round} \\
-                --min-len ${o.blast_min_hsp_len} --min-pid ${o.blast_min_hsp_pid} ${incl}
+                --bin-map "\$REFS" \\
+                --min-len ${o.blast_min_hsp_len} --min-pid ${o.blast_min_hsp_pid} ${incl} ${defer}
         fi
         for ext in match class nomatch chim; do [ -e R\${round}.\$ext ] || : > R\${round}.\$ext; done
 
@@ -137,7 +170,7 @@ process OUROBOROS_RECRUIT {
         else
             # ── SORT ────────────────────────────────────────────────────────────────────────────────
             RL=\$(awk '/^>/{next}{s+=length(\$0);n++} END{print (n>0?int(s/n):150)}' R\${round}.match)
-            parse_sort_results.py R\${round}.class R\${round}.match R\${round} -C \$MRC -D \$MRP ${sg} ${bg} ${sec}
+            parse_sort_results.py R\${round}.class R\${round}.match R\${round} -C \$MRC -D \$MRP ${sg} ${bg} ${sec} ${collapse}
             [ -e R\${round}.txt ] && mv R\${round}.txt R\${round}.sort_stats.txt || true
             [ -e R\${round}.sort_stats.txt ] || : > R\${round}.sort_stats.txt
             rm -f R\${round}-*.fa.2 2>/dev/null || true
@@ -146,10 +179,28 @@ process OUROBOROS_RECRUIT {
             for fa in R\${round}-*.fa; do
                 [ -e "\$fa" ] || continue
                 gene=\$(basename "\$fa" .fa); gene=\${gene#R\${round}-}
-                # This gene's own reference from the prior round when it has one, else the combined set.
+                # This gene's own reference from the prior round when it has one; in round 1 there is no
+                # prior, so select this gene's record OUT of the panel rather than passing the panel.
+                # Passing the whole panel meant sam_align_stats.py took ref_len from whichever record
+                # sorted first — so reordering a panel of byte-identical sequences moved pct_called by
+                # 12 points — and let a bin's reads align to a neighbour's coordinates (~0.2%).
                 gref="\$REFS"
                 prev=\$(( round - 1 ))
-                [ -e "R\${prev}-\${gene}.ref" ] && gref="R\${prev}-\${gene}.ref"
+                if [ -e "R\${prev}-\${gene}.ref" ]; then
+                    gref="R\${prev}-\${gene}.ref"
+                else
+                    # --subtype-counts: choose WHICH record in the bin on this sample's own read
+                    # evidence, not on file order. rammap_partition.py wrote the tally in this same
+                    # directory. Without it the bin always aligned against its first record, which
+                    # build_panel emits RefSeq-first — canonical, but not necessarily the closest
+                    # variant to this sample. On the arbovirus cohort that cost 77% of multi-record
+                    # bins their best reference, and one JCV M segment went 41.5% -> 100% breadth
+                    # once the right sibling was picked.
+                    select_reference.py --fasta "\$REFS" --name "\${gene}" \\
+                        --subtype-counts "R\${round}.subtypes.tsv" \\
+                        -o "R\${round}-\${gene}.gref"
+                    gref="R\${round}-\${gene}.gref"
+                fi
                 if [ "${o.gather_aligner}" = "BLAST" ]; then
                     makeblastdb -in "\$gref" -dbtype nucl -out adb > /dev/null 2>&1
                     blastn -task ${o.blast_task} -query "\$fa" -db adb -num_threads ${task.cpus} \\

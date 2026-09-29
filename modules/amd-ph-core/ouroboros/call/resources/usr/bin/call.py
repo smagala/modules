@@ -35,6 +35,9 @@ ap.add_argument("-D", "--min-deletion-freq", type=float, dest="min_freq_del")
 ap.add_argument("-C", "--min-count", type=int, dest="min_count")
 ap.add_argument("-Q", "--min-quality", type=int, dest="min_quality")
 ap.add_argument("-T", "--min-total-col-coverage", type=int, dest="min_total")
+ap.add_argument("--min-consensus-depth", type=int, dest="min_cons_depth", default=None,
+                help="Emit 'N' rather than a plurality base at columns below this depth. 0/unset "
+                     "keeps the legacy behaviour of calling from any depth >= 1.")
 ap.add_argument("-P", "--print-all-sites", action="store_true", dest="print_all")
 ap.add_argument("-M", "--conf-not-mac-err", type=float, dest="min_conf")
 ap.add_argument("-S", "--sig-level", type=float, dest="sig_level")
@@ -72,6 +75,7 @@ min_freq_del = min_freq if a.min_freq_del is None else max(a.min_freq_del, 0)
 min_conf = 0.5 if a.min_conf is None else max(a.min_conf, 0)
 min_quality = 20 if a.min_quality is None else max(a.min_quality, 0)
 min_total = 2 if (a.min_total is None or a.min_total < 0) else a.min_total
+min_cons_depth = 0 if a.min_cons_depth is None else max(0, a.min_cons_depth)
 auto_freq = a.auto_freq
 print_all = a.print_all
 caller = a.caller
@@ -382,6 +386,14 @@ for p in range(ref_len):
             if sc_tot > 0 and (min(fwd, rev) / sc_tot) < refchg_min_sf:
                 consensus = rb   # decline the consensus mutation; keep the reference base
                 con_count = cTable[p].get(rb, 0)   # re-anchor freq/quality/classification on the ref base
+
+    # Depth floor on the CONSENSUS. min_total has always gated variant and indel calls, but never
+    # the plurality base, so a column with a single aligned read produced a called base. Exhaustive
+    # aligners place spurious reads in uncovered regions, and at depth 1-3 those became consensus:
+    # measured as 12 wrong bases in a 60 bp window that Sanger, viralrecon and three independent
+    # de novo contigs all agree on. 'N' here is the documented "unknown" marker and preserves length.
+    if min_cons_depth > 0 and total < min_cons_depth and consensus != "-":
+        consensus = "N"
 
     consensus_seq_parts.append(consensus)
     cons.write(consensus)

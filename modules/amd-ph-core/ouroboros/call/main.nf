@@ -62,6 +62,10 @@ process OUROBOROS_CALL {
     // Opt-in indel folding: fold called indels into the amended consensus so it reflects real length
     // changes (N still means missing). Off by default, because IRMA routes indels to the VCF and keeps
     // the amended consensus length-locked; folding here would diverge the NM=0 parity baseline.
+    // Optional consensus depth floor. Applies to call.py ONLY -- CALL_OPTS is shared with
+    // generate_vcf.py, which does not know this flag. Defaults off: existing callers unchanged.
+    def mcd = ((task.ext.min_consensus_depth ?: 0) as int) > 0
+                  ? "--min-consensus-depth ${task.ext.min_consensus_depth} " : ''
     def indel_opt = amend_indels ? "--deletion-file ${gene}-deletions.txt --insertion-file ${gene}-insertions.txt" : ''
     """
     # CALL_OPTS holds the thresholds shared by call.py AND generate_vcf.py. The caller-specific flags
@@ -81,10 +85,10 @@ process OUROBOROS_CALL {
         irma-core merge-sam --store-stats ${ref} ${sam} M-${gene}
         var_call_stats.py ${ref} M-${gene}.sam V-${gene}
         get_pairing_stats.py M-${gene}.stats > ${gene}-pairingStats.txt
-        call.py --print-all-sites --no-gap-allele \$CALL_OPTS \$CALLER_OPTS --paired-error ${gene}-pairingStats.txt ${ref} ${gene} V-${gene}.pileup.msgpack
+        call.py --print-all-sites --no-gap-allele ${mcd}\$CALL_OPTS \$CALLER_OPTS --paired-error ${gene}-pairingStats.txt ${ref} ${gene} V-${gene}.pileup.msgpack
     else
         var_call_stats.py ${ref} ${sam} V-${gene}
-        call.py --print-all-sites --no-gap-allele \$CALL_OPTS \$CALLER_OPTS ${ref} ${gene} V-${gene}.pileup.msgpack
+        call.py --print-all-sites --no-gap-allele ${mcd}\$CALL_OPTS \$CALLER_OPTS ${ref} ${gene} V-${gene}.pileup.msgpack
     fi
 
     # === PHASING === (only worthwhile with more than two variants)

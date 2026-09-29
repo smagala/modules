@@ -37,7 +37,7 @@ workflow OUROBOROS {
     amplicon_min_depth  // value:   depth at or above which a reference position is called, not masked
 
     main:
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     // ── recruit + refine, one task per sample ──
     OUROBOROS_GATHER( ch_reads_refs, ch_deflation, recruit_opts, max_rounds )
@@ -61,7 +61,7 @@ workflow OUROBOROS {
     // Cross-bin by nature, so it gathers every bin's ref-pinned consensus for a sample before running.
     // groupTuple is safe here: these channels close normally, unlike inside a loop.
     ch_genome_report_in = OUROBOROS_ASSEMBLE_STAGE.out.refpinned
-        .map { meta, gene, fa -> [ meta, fa ] }
+        .map { meta, _gene, fa -> [ meta, fa ] }
         .groupTuple()
         .join( OUROBOROS_GATHER.out.ref_set )
         .join( OUROBOROS_GATHER.out.sort_stats )
@@ -88,6 +88,7 @@ workflow OUROBOROS {
     nomatch            = OUROBOROS_GATHER.out.nomatch               // channel: [ val(meta), path(nomatch.fa) ]
     sort_stats         = OUROBOROS_GATHER.out.sort_stats            // channel: [ val(meta), path(sorted_read_stats.txt) ]
     gather_timings     = OUROBOROS_GATHER.out.timings               // channel: [ val(meta), path(round_timings.tsv) ]
+    collapse           = OUROBOROS_GATHER.out.collapse              // channel: [ val(meta), path(R*.collapse.tsv) ] — only when collapse_groups is set
     polish_timings     = OUROBOROS_ASSEMBLE_STAGE.out.timings       // channel: [ val(meta), val(gene), path(iter_timings.tsv) ]
     unalignable        = OUROBOROS_ASSEMBLE_STAGE.out.unalignable   // channel: [ val(meta), val(gene), val(reason) ] — bins the aligner could not anchor
     versions           = ch_versions                                // channel: [ path(versions.yml) ]
