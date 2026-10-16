@@ -1,0 +1,182 @@
+{
+    "sarscov2 - fastq - single_end - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.depleted.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.matched.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
+                "3": [
+                    [
+                        "BBMAP_BBDUK",
+                        "bbduk",
+                        "40.04"
+                    ]
+                ],
+                "matched": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.matched.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "reads": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.depleted.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "stats": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
+                "versions_bbduk": [
+                    [
+                        "BBMAP_BBDUK",
+                        "bbduk",
+                        "40.04"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-10-16T16:58:05.542882189",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "stats_real": {
+        "content": [
+            "#File\tinput_reads/test_1.fastq.gz\tinput_reads/test_2.fastq.gz\n#Total\t200\n#Matched\t198\t99.00000%\n#Name\tReads\tReadsPct\nMT192765.1 Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/human/USA/PC00101P/2020, complete genome\t198\t99.00000%\n"
+        ],
+        "timestamp": "2026-10-16T16:57:52.972540009",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "sarscov2 - fastq - paired_end - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.depleted_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.depleted_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.matched_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.matched_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
+                "3": [
+                    [
+                        "BBMAP_BBDUK",
+                        "bbduk",
+                        "40.04"
+                    ]
+                ],
+                "matched": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.matched_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.matched_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "reads": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.depleted_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.depleted_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "stats": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
+                "versions_bbduk": [
+                    [
+                        "BBMAP_BBDUK",
+                        "bbduk",
+                        "40.04"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-10-16T16:57:59.327370614",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

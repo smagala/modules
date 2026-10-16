@@ -1,0 +1,114 @@
+nextflow_process {
+
+    name "Test Process BBMAP_BBDUK"
+    script "../main.nf"
+    process "BBMAP_BBDUK"
+
+    tag "modules"
+    tag "modules_amdphcore"
+    tag "bbmap"
+    tag "bbmap/bbduk"
+
+    // The module pins the public BioContainer at the same version AMDP ECR
+    // carries, so the real script path runs here and is not left to the stub.
+
+    test("sarscov2 - fastq - paired_end - deplete against the genome the reads came from") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test', single_end:false ],
+                    [ file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/illumina/fastq/test_1.fastq.gz', checkIfExists: true),
+                      file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/illumina/fastq/test_2.fastq.gz', checkIfExists: true) ]
+                ])
+                input[1] = file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            def stats = path(process.out.stats[0][1]).text
+            // "#Matched<TAB><reads><TAB><pct>%"
+            def matched_pct = Float.parseFloat(
+                stats.readLines().find { it.startsWith('#Matched') }.split('\t')[2].replace('%', '')
+            )
+            assertAll(
+                { assert process.success },
+                { assert process.out.reads[0][1].size() == 2 },
+                { assert process.out.matched[0][1].size() == 2 },
+                // The reads are from this genome, so the split has to be
+                // lopsided towards matched. Asserting the direction rather than
+                // an exact count keeps the test from re-encoding bbduk's
+                // defaults, while still failing the one mistake that would
+                // otherwise look like success: swapping `out` and `outm`.
+                { assert matched_pct > 50.0 },
+                { assert snapshot(stats).match("stats_real") }
+            )
+        }
+    }
+
+    test("sarscov2 - fastq - paired_end - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test', single_end:false ],
+                    [ file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/illumina/fastq/test_1.fastq.gz', checkIfExists: true),
+                      file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/illumina/fastq/test_2.fastq.gz', checkIfExists: true) ]
+                ])
+                input[1] = file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                // Both streams: the depleted reads are the product, the matched
+                // reads are the deliverable this pipeline routes to rRNA
+                // characterisation. A module that dropped them would still pass
+                // a test that only looked at `reads`.
+                { assert process.out.reads[0][1].size() == 2 },
+                { assert process.out.matched[0][1].size() == 2 },
+                { assert process.out.reads[0][1][0] ==~ ".*/test.depleted_1.fastq.gz" },
+                { assert process.out.reads[0][1][1] ==~ ".*/test.depleted_2.fastq.gz" },
+                { assert process.out.matched[0][1][0] ==~ ".*/test.matched_1.fastq.gz" },
+                { assert process.out.matched[0][1][1] ==~ ".*/test.matched_2.fastq.gz" },
+                // MultiQC finds this file by its header, not its name, so the
+                // header is part of the contract and the stub has to carry it.
+                { assert path(process.out.stats[0][1]).text.contains('#Name\tReads\tReadsPct') },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+
+    test("sarscov2 - fastq - single_end - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test', single_end:true ],
+                    [ file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/illumina/fastq/test_1.fastq.gz', checkIfExists: true) ]
+                ])
+                input[1] = file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.reads[0][1] ==~ ".*/test.depleted.fastq.gz" },
+                { assert process.out.matched[0][1] ==~ ".*/test.matched.fastq.gz" },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

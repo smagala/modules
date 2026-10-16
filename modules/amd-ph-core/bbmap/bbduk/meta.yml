@@ -1,0 +1,133 @@
+name: "bbmap_bbduk"
+description: |
+  Split reads into those that share a k-mer with a reference and those that do not.
+
+  Not a drop-in for nf-core/bbmap/bbduk despite sharing its process name. That
+  module is a trimmer: one output stream, a `.log`, and no way to keep what
+  matched. This one keeps both streams and writes `stats=`, which is the only
+  bbduk output MultiQC parses.
+
+  In this pipeline the reference is a ribosomal RNA panel and the product is the
+  depleted stream, but nothing in the module is rRNA-specific: it is `bbduk.sh`
+  with `ref=` and both output streams kept.
+
+  Why k-mer matching rather than alignment. Measured on a 19.4M-fragment wastewater
+  RNA library against the same 29,107-record RefSeq targeted-loci rRNA panel:
+
+  | method                                   | library flagged |
+  | ---------------------------------------- | --------------- |
+  | rammap, identity >= 0.90, qcov >= 0.60   | 24.5%           |
+  | blastn, identity >= 0.90, qcov >= 0.60   | 68.4%           |
+  | bbduk, k=25                              | 94.1%           |
+
+  A minimizer aligner auto-caps `mid_occ` at 1,000 on a panel like this, and every
+  informative minimizer in a conserved rRNA stretch occurs far more often than that,
+  so the seeds that would identify the right record are exactly the ones discarded.
+  k-mer matching treats the panel's redundancy as an asset instead. On 3,000 known
+  rRNA fragments bbduk k=25 is 99.4% sensitive against 0.07% false positives on
+  non-ribosomal bacterial 150-mers, and it reads the whole library in 24 s at 29 MB
+  of RSS where the aligner took 376 s, 2.8 GB and wrote 3 GB of PAF.
+
+  k is the one setting that matters. k=31 costs 2.4 points of sensitivity; k=21 buys
+  0.2 points for 2.6x the false-positive rate. Pass it through `ext.args`.
+
+  Both streams are emitted. `reads` is the depleted library; `matched` is what was
+  removed, which is a deliverable rather than a byproduct — it is the input to rRNA
+  characterisation, and an over-aggressive reference is otherwise invisible.
+keywords:
+  - filter
+  - decontamination
+  - rrna
+  - ribodepletion
+  - fastq
+  - kmer
+tools:
+  - bbduk:
+      description: "BBDuk: k-mer based filtering, trimming and masking, from the BBTools suite."
+      homepage: "https://jgi.doe.gov/data-and-tools/software-tools/bbtools/"
+      documentation: "https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/"
+      tool_dev_url: "https://sourceforge.net/projects/bbmap/"
+      licence:
+        - "BSD-3-clause-LBNL"
+      identifier: "biotools:bbmap"
+      args_id: "$args"
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information, e.g. `[ id:'sample1', single_end:false ]`
+    - reads:
+        type: file
+        description: One FASTQ file for single-end input, two for paired-end.
+        pattern: "*.{fq,fastq}{,.gz}"
+        ontologies:
+          - edam: http://edamontology.org/format_1930 # FASTQ
+  - ref:
+      type: file
+      description: |
+        FASTA of the sequence to match against. For ribodepletion this is the rRNA
+        panel; it may be as redundant as it likes, which is the point.
+      pattern: "*.{fa,fasta}{,.gz}"
+      ontologies: []
+output:
+  reads:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.depleted*.fastq.gz":
+          type: file
+          description: Reads that shared no k-mer with the reference.
+          pattern: "*.depleted*.fastq.gz"
+          ontologies:
+            - edam: http://edamontology.org/format_3989 # GZIP format
+  matched:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.matched*.fastq.gz":
+          type: file
+          description: Reads that did share a k-mer with the reference.
+          pattern: "*.matched*.fastq.gz"
+          ontologies:
+            - edam: http://edamontology.org/format_3989 # GZIP format
+  stats:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.bbduk.txt":
+          type: file
+          description: |
+            Per-reference-record hit counts, with the input and matched totals in the
+            header. MultiQC reads this under its `bbmap/stats` pattern. It does NOT
+            read bbduk's stderr log: that pattern matches "Executing jgi.BBDuk", which
+            BBTools 39.76 renamed to `bbduk.BBDukS`, and which the JVM puts on line
+            three where the pattern allows two.
+          pattern: "*.bbduk.txt"
+          ontologies: []
+  versions_bbduk:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - bbduk:
+          type: string
+          description: The name of the tool
+      - bbduk.sh --version 2>&1 | sed -n 's/^BBTools version //p' | head -n 1:
+          type: eval
+          description: The expression to obtain the version of the tool
+
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - bbduk:
+          type: string
+          description: The name of the tool
+      - bbduk.sh --version 2>&1 | sed -n 's/^BBTools version //p' | head -n 1:
+          type: eval
+          description: The expression to obtain the version of the tool
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"
