@@ -53,6 +53,17 @@ input:
         description: |
           Mandatory. Directory holding the index files themselves, not its
           parent.
+  - aligner:
+      type: string
+      description: |
+        Mandatory. Either "bowtie2" or "minimap2" (hostess also accepts
+        "auto"). This selects the aligner AND the shape of --index, because for
+        hostess they are one decision: bowtie2 takes an index PREFIX shared by
+        several .bt2 files, while minimap2 takes a single reference FASTA or
+        .mmi FILE. Supplied as an input rather than read from a meta field so
+        the module stays within meta.id and meta.single_end, and so the caller
+        -- which already knows whether it is routing long or short reads --
+        remains the single source of truth.
 output:
   fastq:
     - - meta:

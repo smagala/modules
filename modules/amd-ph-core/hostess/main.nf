@@ -15,6 +15,7 @@ process HOSTESS {
     input:
     tuple val(meta), path(reads, stageAs: "input_reads/")
     tuple val(reference_name), path(reference_dir)
+    val aligner
 
     output:
     tuple val(meta), path("*.clean*.fastq.gz")     , emit: fastq
@@ -31,6 +32,16 @@ process HOSTESS {
     script:
     def args         = task.ext.args ?: ''
     def prefix       = task.ext.prefix ?: "${meta.id}"
+    // `aligner` decides both the flag and the shape of --index, because for
+    // hostess those are one decision: bowtie2 wants an index PREFIX shared by
+    // several .bt2 files, minimap2 wants a single reference FASTA or .mmi FILE.
+    // Taking it as an input rather than reading a meta field keeps this module
+    // to meta.id and meta.single_end, and leaves the caller -- which already
+    // knows whether it is routing long or short reads -- the single source of
+    // truth for the choice.
+    def index_ref = aligner == 'minimap2'
+        ? (reference_dir.isDirectory() ? "${reference_dir}/${reference_name}.mmi" : reference_dir.toString())
+        : "${reference_dir}/${reference_name}"
     // Sorted so mate 1 is always first: the glob that stages the reads makes
     // no ordering promise, and passing them the wrong way round would swap the
     // output mates silently.
@@ -43,9 +54,10 @@ process HOSTESS {
     """
     hostess clean \\
         ${args} \\
+        --aligner ${aligner} \\
         --threads ${task.cpus} \\
         ${reads_cmd} \\
-        --index "${reference_dir}/${reference_name}" \\
+        --index "${index_ref}" \\
         --prefix "${prefix}" \\
         --output . \\
         --force
@@ -73,7 +85,7 @@ process HOSTESS {
         '[' \\
         '    {' \\
         '        "version": "stub",' \\
-        '        "aligner": "bowtie2",' \\
+        '        "aligner": "${aligner}",' \\
         '        "index": "${reference_name}",' \\
         '        "options": [],' \\
         '        "fastq1_in_name": "${prefix}",' \\
