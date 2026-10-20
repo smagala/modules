@@ -1,0 +1,98 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "ouroboros_gather"
+description: |
+  The recruit and reference-refinement half of the pipeline, plus the boundary it hands to assembly.
+  The recruit loop turns INSIDE OUROBOROS_RECRUIT, one task per sample, so this subworkflow holds no
+  loop mechanics at all — no topic, no `until`, no `.recurse()`. Samples are an ordinary scatter and
+  converge independently. That is a correctness requirement: `until` closes the channel rather than
+  dropping the matching item, so a topic feedback loop truncates every other sample the moment the
+  first converges, and it does so silently.
+  The subworkflow also shapes the gather-to-assemble boundary: per gene, the sorted reads across all
+  rounds, the HIGHEST-round refined reference, and the deflation index. That is the contract a single
+  assemble run consumes, which is what allows assembly to be dispatched one bin at a time.
+  pirma split this across gather_recurse and gather_stage; the latter called no modules of its own and
+  only reshaped channels, so the two are merged here rather than kept as an indirection.
+keywords:
+  - recruitment
+  - iterative-refinement
+  - meta-assembly
+  - feedback-loop
+  - binning
+components:
+  - ouroboros/recruit
+
+input:
+  - ch_reads_refs:
+      type: file
+      description: |
+        Deflated reads and the panel reference set for a sample.
+        Structure: [ val(meta), path(reads_fasta), path(ref_set) ]
+      pattern: "*.{fa,fasta}"
+  - ch_deflation:
+      type: file
+      description: |
+        Deflation index for the sample, carried through to the boundary so assembly can inflate.
+        Structure: [ val(meta), path(deflation_index) ]
+      pattern: "*.xfl"
+  - recruit_opts:
+      type: map
+      description: |
+        Recruit settings; see modules/amd-ph-core/ouroboros/recruit for the required keys.
+        Structure: val(recruit_opts)
+  - max_rounds:
+      type: integer
+      description: |
+        Safety cap on recruit rounds. Convergence normally stops the loop first.
+        Structure: val(max_rounds)
+
+output:
+  - per_gene:
+      type: file
+      description: |
+        The gather-to-assemble boundary: per gene, the sorted reads across all rounds, the
+        highest-round refined reference, and the deflation index.
+        Structure: [ val(meta), val(gene), path(sorted_fas), path(refined_ref), path(deflation) ]
+      pattern: "*.{fa,ref}"
+  - ref_set:
+      type: file
+      description: |
+        The panel reference set, passed through. Its record IDs are the bin labels and the reporting
+        frame for reference-relative variants.
+        Structure: [ val(meta), path(panel_ref_set) ]
+      pattern: "*.{fa,fasta}"
+  - chimeric:
+      type: file
+      description: |
+        Round-1 reads dropped as chimeric.
+        Structure: [ val(meta), path(chimeric.fa) ]
+      pattern: "chimeric.fa"
+  - nomatch:
+      type: file
+      description: |
+        Reads never recruited — the unrecruited fraction behind every depth this pipeline reports.
+        Structure: [ val(meta), path(nomatch.fa) ]
+      pattern: "nomatch.fa"
+  - sort_stats:
+      type: file
+      description: |
+        Per-gene read counts for every round, concatenated in round order.
+        Structure: [ val(meta), path(sorted_read_stats.txt) ]
+      pattern: "sorted_read_stats.txt"
+  - timings:
+      type: file
+      description: |
+        Per-round seconds, convergence flag, and why the loop stopped.
+        Structure: [ val(meta), path(round_timings.tsv) ]
+      pattern: "round_timings.tsv"
+  - versions:
+      type: file
+      description: |
+        File containing software versions.
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

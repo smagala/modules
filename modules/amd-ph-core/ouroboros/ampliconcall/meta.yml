@@ -1,0 +1,129 @@
+name: ouroboros_ampliconcall
+description: |
+  Reference-anchored, coverage-masked output for amplicon and patchy-coverage samples.
+  The iterative assembler force-extends a contiguous consensus across thin coverage and splices out
+  true-zero gaps, which loses genome coordinates — misleading for amplicon and RACE libraries with
+  uneven coverage and dropout. This maps the recruited reads to the gene's FULL panel record instead
+  and emits genome-anchored outputs: the island BAM at true depth, a full-length consensus that is a
+  real base where depth clears the threshold and N elsewhere, and a BED of the covered islands.
+  Honest by construction: it never bridges a gap it has no reads for, and never collapses one.
+  Reads are inflated first, because a pattern count understates depth and every threshold here is a
+  per-read depth.
+keywords:
+  - amplicon
+  - coverage
+  - consensus
+  - bed
+  - reference-anchored
+tools:
+  - irma-core:
+      description: Rust reimplementation of IRMA's core routines; xflate inflates read patterns to true
+        per-read depth.
+      homepage: https://github.com/CDCgov/irma-core
+      documentation: https://github.com/CDCgov/irma-core
+      licence:
+        - Apache-2.0
+      identifier: ""
+  - rammap:
+      description: Pure-Rust minimap2-compatible read mapper; maps the inflated reads onto the full panel
+        record.
+      homepage: https://github.com/jwanglab/rammap
+      documentation: https://github.com/jwanglab/rammap
+      licence:
+        - MIT
+      identifier: ""
+  - samtools:
+      description: Sorting and indexing, the depth-masked consensus, and the per-position depth that becomes
+        the islands BED.
+      homepage: https://www.htslib.org/
+      documentation: https://www.htslib.org/doc/samtools.html
+      licence:
+        - MIT
+      identifier: biotools:samtools
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - gene:
+        type: string
+        description: Target/bin label, which is also the panel record ID used as the coordinate anchor
+    - reads:
+        type: file
+        description: Deflated read patterns recruited to this gene
+        pattern: "*.{fa,fasta}"
+        ontologies: []
+    - deflation_index:
+        type: file
+        description: Deflation index, used to inflate the patterns to true per-read depth
+        pattern: "*.xfl"
+        ontologies: []
+    - refs:
+        type: file
+        description: Full panel reference set; the record whose ID matches the gene label is extracted
+        pattern: "*.{fa,fasta}"
+        ontologies: []
+  - min_depth:
+      type: integer
+      description: Depth at or above which a reference position is called rather than masked to N
+output:
+  bam:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.amplicon.bam:
+          type: file
+          description: Reads mapped to the full panel record, coordinate-sorted
+          pattern: "*.amplicon.bam"
+      - ${gene}.amplicon.bam.bai:
+          type: file
+          description: BAM index
+          pattern: "*.amplicon.bam.bai"
+  consensus:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.amplicon.consensus.fa:
+          type: file
+          description: Full-length reference-anchored consensus, N where depth is below min_depth
+          pattern: "*.amplicon.consensus.fa"
+  bed:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.amplicon.islands.bed:
+          type: file
+          description: Intervals with depth at or above min_depth
+          pattern: "*.amplicon.islands.bed"
+  ref:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.ref:
+          type: file
+          description: The extracted full-length panel record for this gene
+          pattern: "*.ref"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: versions.yml
+        ontologies:
+          - edam: http://edamontology.org/format_3750
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

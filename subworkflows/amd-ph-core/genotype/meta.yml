@@ -1,0 +1,85 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "genotype"
+description: |
+  Type an assembled sequence against a reference database with BLAST, and emit one call per query
+  with its runner-up and the margin between them.
+
+  Generic by construction — the database, the thresholds, and the meaning of a subject name are all
+  inputs. Rabies lineage typing is this subworkflow pointed at a rabies typing database; flu clade
+  calling is the same subworkflow pointed at a flu one. Nothing here is pathogen-specific.
+
+  It does not assume any particular upstream module ran: the query is an ordinary
+  [ meta, fasta ] channel, so it types an ouroboros consensus, an IRMA consensus, or a FASTA from
+  disk without knowing which.
+
+  Typing is deliberately separate from recruitment because the two want opposite databases.
+  Recruitment wants FEW, well-separated references — reads are short, divergence is local rather
+  than uniform, and near-identical neighbours shatter a sample across bins the recruit loop can
+  never recombine. Typing wants MANY densely labelled references, where near-identical neighbours
+  are the point. Measured on a real rabies library, growing the recruitment panel from 2 to 17
+  references recruited 69% more reads, delivered 23% fewer to the correct assembly, and produced a
+  phantom co-infection. Type after assembly, where the query is a whole consensus rather than a
+  150 bp read.
+keywords:
+  - genotype
+  - typing
+  - lineage
+  - clade
+  - blast
+components:
+  - blast/makeblastdb:
+      git_remote: https://github.com/nf-core/modules.git
+  - blast/blastn:
+      git_remote: https://github.com/nf-core/modules.git
+  - genotype/call
+input:
+  - ch_query:
+      type: file
+      description: |
+        Sequences to type.
+        Structure: [ val(meta), path(fasta) ]
+      pattern: "*.{fa,fasta,fa.gz,fasta.gz}"
+  - ch_db:
+      type: file
+      description: |
+        The reference database. A FASTA to build from when `build_db` is true, otherwise a prebuilt
+        BLAST database directory.
+        Structure: [ val(meta2), path(db) ]
+  - build_db:
+      type: boolean
+      description: |
+        Build the database from `ch_db` (true), or use `ch_db` as an existing BLAST database
+        directory (false). Building is the common path for a curated in-house set; passing a
+        prebuilt directory lets a large shared database be built once out-of-band and reused.
+  - genotype_opts:
+      type: map
+      description: |
+        Call settings. All optional, with defaults chosen to report rather than filter:
+          columns     - outfmt 6 field names in file order. Must match the `-outfmt` in this
+                        subworkflow's nextflow.config. Default:
+                        'qseqid sseqid pident length qstart qend qlen slen bitscore'
+          min_pident  - drop HSPs below this percent identity (default 0.0)
+          min_qcov    - drop a subject below this aggregated query coverage, 0-1 (default 0.0)
+          tie_margin  - relative bitscore margin below which a call is `ambiguous` (default 0.02)
+output:
+  - calls:
+      type: file
+      description: |
+        One row per query: sample, query, subject, pident, qcov, bitscore, runnerup,
+        runnerup_bitscore, margin, call. `call` is one of confident / ambiguous / no_hit.
+        Structure: [ val(meta), path(*.genotype.tsv) ]
+      pattern: "*.genotype.tsv"
+  - hits:
+      type: file
+      description: |
+        Raw tabular BLAST output, kept so a call can be audited back to the hits it came from.
+        Structure: [ val(meta), path(*.txt) ]
+      pattern: "*.txt"
+# No `versions` output. All three components report to the `versions` TOPIC as a
+# (process, tool, version) tuple, so a pipeline collects them with a single
+# `channel.topic('versions')` rather than threading a version channel out of every subworkflow.
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"
