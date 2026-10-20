@@ -87,21 +87,31 @@ process BBMAP_BBDUK {
     // rather than all of it: the JVM's non-heap footprint (metaspace, thread
     // stacks, direct buffers) sits outside -Xmx, so handing it the whole cgroup
     // limit is zero-slack by construction. Measured peak RSS for bbduk is
-    // -Xmx plus ~0.1 GB, so 85% is comfortable rather than tight. Floored at
-    // 1g so a small test task still gets a legal value.
-    def heap_gb = task.memory ? Math.max(1L, (task.memory.toGiga() * 0.85) as long) : 0L
-    def mem = task.memory ? "-Xmx${heap_gb}g" : ''
+    // -Xmx plus ~0.1 GB, so 85% is comfortable rather than tight.
+    //
+    // Computed in MiB, not GiB. toGiga() truncates, so a sub-GiB task floored
+    // to -Xmx1g would have been handed MORE than its own limit, and a 1 GiB
+    // task would have got the whole allocation as heap and no headroom at all
+    // -- the opposite of the intent. In MiB there is no floor to apply: 85% of
+    // the task is always inside it.
+    def heap_mb = task.memory ? (task.memory.toMega() * 0.85) as long : 0L
+    def mem = task.memory ? "-Xmx${heap_mb}m" : ''
     // Rows kept in the MultiQC-facing copy of the stats file. 20 is MultiQC's
     // own default for how many bars it draws in that plot, so more would be
     // carried and not shown. Not exposed as an ext key: nf-core lint allows
     // only args/args2/args3/prefix/when/suffix, and nothing needs to tune it.
     def mqc_rows = 20
+    // Comma-joined, because `path ref` accepts a list and Groovy would
+    // interpolate it space-separated -- `ref=a.fa b.fa` makes the second
+    // filename a standalone argument and bbduk fails on it. meta.yml documents
+    // passing several references, so this has to hold for more than one.
+    def ref_arg = [ref].flatten().join(',')
     """
     bbduk.sh \\
         ${mem} \\
         ${in_cmd} \\
         ${out_cmd} \\
-        ref=${ref} \\
+        ref=${ref_arg} \\
         stats=${prefix}.bbduk.txt \\
         rpkm=${prefix}.bbduk.rpkm.txt \\
         refstats=${prefix}.bbduk.refstats.txt \\

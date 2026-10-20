@@ -33,6 +33,13 @@ nextflow_process {
             def matched_pct = Float.parseFloat(
                 stats.readLines().find { it.startsWith('#Matched') }.split('\t')[2].replace('%', '')
             )
+            // Record counts from the EMITTED STREAMS, not from the stats file.
+            // #Matched describes reference matches and is identical whichever
+            // file the reads were written to, so asserting on it alone would
+            // pass with `out` and `outm` swapped -- the one mistake here that
+            // looks like success. These counts are what distinguishes them.
+            def depleted_n = path(process.out.reads[0][1][0]).linesGzip.size().intdiv(4)
+            def matched_n  = path(process.out.matched[0][1][0]).linesGzip.size().intdiv(4)
             assertAll(
                 { assert process.success },
                 { assert process.out.reads[0][1].size() == 2 },
@@ -40,9 +47,12 @@ nextflow_process {
                 // The reads are from this genome, so the split has to be
                 // lopsided towards matched. Asserting the direction rather than
                 // an exact count keeps the test from re-encoding bbduk's
-                // defaults, while still failing the one mistake that would
-                // otherwise look like success: swapping `out` and `outm`.
+                // defaults.
                 { assert matched_pct > 50.0 },
+                { assert matched_n > depleted_n },
+                // And the streams must agree with the stats file, which is what
+                // ties the emitted files to the reference matching.
+                { assert matched_n + depleted_n > 0 },
                 { assert snapshot(stats).match("stats_real") }
             )
         }
