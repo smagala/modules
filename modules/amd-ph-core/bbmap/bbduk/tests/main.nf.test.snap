@@ -31,9 +31,36 @@
                 ],
                 "3": [
                     [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.summary.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
+                "4": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.rpkm.txt:md5,c8c32625e9113eeea45a807b281626ac"
+                    ]
+                ],
+                "5": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.refstats.txt:md5,1ceb5e7a8cc0eaa92f2ec31887a6f8ac"
+                    ]
+                ],
+                "6": [
+                    [
                         "BBMAP_BBDUK",
                         "bbduk",
-                        "40.04"
+                        "40.05"
                     ]
                 ],
                 "matched": [
@@ -54,6 +81,24 @@
                         "test.depleted.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
                     ]
                 ],
+                "refstats": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.refstats.txt:md5,1ceb5e7a8cc0eaa92f2ec31887a6f8ac"
+                    ]
+                ],
+                "rpkm": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.rpkm.txt:md5,c8c32625e9113eeea45a807b281626ac"
+                    ]
+                ],
                 "stats": [
                     [
                         {
@@ -63,16 +108,25 @@
                         "test.bbduk.txt:md5,f2e533180fe7487898b65e979a793f4c"
                     ]
                 ],
+                "stats_mqc": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.bbduk.summary.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
                 "versions_bbduk": [
                     [
                         "BBMAP_BBDUK",
                         "bbduk",
-                        "40.04"
+                        "40.05"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-10-16T16:58:05.542882189",
+        "timestamp": "2026-10-20T11:34:48.90029225",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.6"
@@ -126,9 +180,36 @@
                 ],
                 "3": [
                     [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.summary.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
+                "4": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.rpkm.txt:md5,c8c32625e9113eeea45a807b281626ac"
+                    ]
+                ],
+                "5": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.refstats.txt:md5,1ceb5e7a8cc0eaa92f2ec31887a6f8ac"
+                    ]
+                ],
+                "6": [
+                    [
                         "BBMAP_BBDUK",
                         "bbduk",
-                        "40.04"
+                        "40.05"
                     ]
                 ],
                 "matched": [
@@ -155,6 +236,24 @@
                         ]
                     ]
                 ],
+                "refstats": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.refstats.txt:md5,1ceb5e7a8cc0eaa92f2ec31887a6f8ac"
+                    ]
+                ],
+                "rpkm": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.rpkm.txt:md5,c8c32625e9113eeea45a807b281626ac"
+                    ]
+                ],
                 "stats": [
                     [
                         {
@@ -164,16 +263,25 @@
                         "test.bbduk.txt:md5,f2e533180fe7487898b65e979a793f4c"
                     ]
                 ],
+                "stats_mqc": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.bbduk.summary.txt:md5,f2e533180fe7487898b65e979a793f4c"
+                    ]
+                ],
                 "versions_bbduk": [
                     [
                         "BBMAP_BBDUK",
                         "bbduk",
-                        "40.04"
+                        "40.05"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-10-16T16:57:59.327370614",
+        "timestamp": "2026-10-20T11:34:45.295574582",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.6"

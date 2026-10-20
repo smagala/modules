@@ -10,7 +10,7 @@ process BBMAP_BBDUK {
     // bbduk output MultiQC can actually parse. Installing both into one pipeline
     // would collide on the process name; install this one.
     conda "${moduleDir}/environment.yml"
-    // 40.04, and not the newest build in AMDP ECR, which is
+    // 40.05, and not the newest build in AMDP ECR, which is
     // oamd-bio-bbtools:39.76_3ceaa9c_v3. 39.76 and 39.91 both carry a race in
     // the paired read streamer that aborts a run on two FASTQs:
     //
@@ -19,12 +19,14 @@ process BBMAP_BBDUK {
     //
     // It is not cosmetic. On the pipeline's own test sample it truncated the
     // output at 2,304 of 535,442 reads and then exited non-zero; bbduk.sh runs
-    // java with -ea, so the assertion is always live. 40.04 processes the same
-    // input cleanly at one and at two threads. ECR should be rebuilt at 40.04
-    // before an AMDP config points this module back at it.
+    // java with -ea, so the assertion is always live. 40.04 and 40.05 both
+    // process the same input cleanly at one and at two threads, and produce
+    // byte-identical stats files on a 38.8M-read library. ECR holds no 40.x
+    // build at all and should be rebuilt at 40.05 before an AMDP config points
+    // this module back at it.
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'https://depot.galaxyproject.org/singularity/bbmap:40.04--h09cc210_0'
-        : 'biocontainers/bbmap:40.04--h09cc210_0'}"
+        ? 'https://depot.galaxyproject.org/singularity/bbmap:40.05--h09cc210_0'
+        : 'biocontainers/bbmap:40.05--h09cc210_0'}"
 
     // On MultiQC: its `bbduk` search pattern matches the string "Executing
     // jgi.BBDuk", which BBTools renamed to `bbduk.BBDukS` in 39.76, and which
@@ -34,6 +36,18 @@ process BBMAP_BBDUK {
     // pattern, which content-matches the file's own header and is therefore
     // version-independent. Verified against MultiQC 1.35: the log produces "No
     // analysis results found", the stats file produces a bbmap section.
+    //
+    // But do not hand MultiQC the WHOLE stats file. It has one row per matched
+    // reference record, and on a reference large enough to be worth using that
+    // is a lot of rows: against SILVA SSU+LSU NR99, 93,601 of them, which
+    // MultiQC writes verbatim into its own outputs -- 13 MB of bbmap.txt and
+    // 23 MB of multiqc_data.json, for one sample. A cohort of a hundred is a
+    // gigabyte of JSON. So the module writes a second, truncated copy for
+    // MultiQC (`stats_mqc`) carrying the header and the top records only, and
+    // leaves the complete file as the result artifact. `bbmap/stats` matches on
+    // the header, so the truncated file parses identically and the summary
+    // table is unchanged -- verified: 38 KB of multiqc_data against 23 MB, same
+    // percent-filtered figure.
 
     input:
     tuple val(meta), path(reads, stageAs: "input_reads/")
@@ -43,6 +57,9 @@ process BBMAP_BBDUK {
     tuple val(meta), path("*.depleted*.fastq.gz"), emit: reads
     tuple val(meta), path("*.matched*.fastq.gz") , emit: matched, optional: true
     tuple val(meta), path("*.bbduk.txt")         , emit: stats
+    tuple val(meta), path("*.bbduk.summary.txt") , emit: stats_mqc
+    tuple val(meta), path("*.bbduk.rpkm.txt")    , emit: rpkm
+    tuple val(meta), path("*.bbduk.refstats.txt"), emit: refstats
     tuple val("${task.process}"), val('bbduk'), eval("bbduk.sh --version 2>&1 | sed -n 's/^BBTools version //p' | head -n 1"), topic: versions, emit: versions_bbduk
 
     when:
@@ -66,8 +83,19 @@ process BBMAP_BBDUK {
         : "out=${prefix}.depleted_1.fastq.gz out2=${prefix}.depleted_2.fastq.gz " +
           "outm=${prefix}.matched_1.fastq.gz outm2=${prefix}.matched_2.fastq.gz"
     // BBTools sizes its heap from the machine, not from the task, and will
-    // happily ask for more than the executor granted and be killed for it.
-    def mem = task.memory ? "-Xmx${task.memory.toGiga()}g" : ''
+    // happily ask for more than the executor granted and be killed for it. 85%
+    // rather than all of it: the JVM's non-heap footprint (metaspace, thread
+    // stacks, direct buffers) sits outside -Xmx, so handing it the whole cgroup
+    // limit is zero-slack by construction. Measured peak RSS for bbduk is
+    // -Xmx plus ~0.1 GB, so 85% is comfortable rather than tight. Floored at
+    // 1g so a small test task still gets a legal value.
+    def heap_gb = task.memory ? Math.max(1L, (task.memory.toGiga() * 0.85) as long) : 0L
+    def mem = task.memory ? "-Xmx${heap_gb}g" : ''
+    // Rows kept in the MultiQC-facing copy of the stats file. 20 is MultiQC's
+    // own default for how many bars it draws in that plot, so more would be
+    // carried and not shown. Not exposed as an ext key: nf-core lint allows
+    // only args/args2/args3/prefix/when/suffix, and nothing needs to tune it.
+    def mqc_rows = 20
     """
     bbduk.sh \\
         ${mem} \\
@@ -75,8 +103,15 @@ process BBMAP_BBDUK {
         ${out_cmd} \\
         ref=${ref} \\
         stats=${prefix}.bbduk.txt \\
+        rpkm=${prefix}.bbduk.rpkm.txt \\
+        refstats=${prefix}.bbduk.refstats.txt \\
         threads=${task.cpus} \\
         ${args}
+
+    # Header (4 lines) plus the top `mqc_rows` records. The records are already
+    # in descending read order, so this is the head of the distribution, not a
+    # sample of it.
+    awk 'NR <= 4 || n++ < ${mqc_rows}' ${prefix}.bbduk.txt > ${prefix}.bbduk.summary.txt
     """
 
     stub:
@@ -95,5 +130,21 @@ process BBMAP_BBDUK {
         '#Total\t0' \\
         '#Matched\t0\t0.00000%' \\
         '#Name\tReads\tReadsPct' > ${prefix}.bbduk.txt
+
+    cp ${prefix}.bbduk.txt ${prefix}.bbduk.summary.txt
+
+    printf '%s\\n' \\
+        '#File\tstub' \\
+        '#Reads\t0' \\
+        '#Mapped\t0' \\
+        '#RefSequences\t0' \\
+        '#Name\tLength\tBases\tCoverage\tReads\tRPKM' > ${prefix}.bbduk.rpkm.txt
+
+    printf '%s\\n' \\
+        '#File\tstub' \\
+        '#Reads\t0' \\
+        '#Mapped\t0' \\
+        '#References\t0' \\
+        '#Name\tLength\tScaffolds\tBases\tCoverage\tReads\tRPKM' > ${prefix}.bbduk.refstats.txt
     """
 }

@@ -104,6 +104,60 @@ output:
             three where the pattern allows two.
           pattern: "*.bbduk.txt"
           ontologies: []
+  stats_mqc:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.bbduk.summary.txt":
+          type: file
+          description: |
+            The header of `stats` plus its top records only, for MultiQC. Feed
+            this to MultiQC rather than `stats`: MultiQC writes every row of the
+            file it parses into its own outputs, and on a reference large enough
+            to be worth using that is a lot of rows -- against SILVA SSU+LSU
+            NR99, 93,601 of them, which cost 13 MB of bbmap.txt and 23 MB of
+            multiqc_data.json for ONE sample. The truncated copy parses
+            identically, because MultiQC's `bbmap/stats` pattern matches on the
+            header, and yields the same percent-filtered figure from 38 KB.
+
+            Row count is fixed at 20, which is how many bars MultiQC draws.
+          pattern: "*.bbduk.summary.txt"
+          ontologies: []
+  rpkm:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.bbduk.rpkm.txt":
+          type: file
+          description: |
+            Per-reference-record length, bases, coverage, read count and RPKM. A
+            superset of `stats`, and the one to keep when the reference carries
+            taxonomy in its deflines: it adds the record length, without which
+            read counts over-weight long references (23S is roughly twice 16S).
+
+            Treat it as provenance, not as a composition profile. bbduk credits a
+            read to its best-matching record and breaks ties on reference file
+            order, so on a redundant reference the per-record split below domain
+            level is an artifact of record order. Measured on a 1,200,640-record
+            SILVA reference: reversing record order moves the composition by 3.1%
+            at phylum, 35.3% at genus and 71.7% at species, and a different
+            ambiguity policy (seal.sh ambig=random) moves it 11.9% at phylum.
+            Depletion itself is unaffected -- it only asks whether any k-mer
+            matched -- and is identical to the read under either policy.
+          pattern: "*.bbduk.rpkm.txt"
+          ontologies: []
+  refstats:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.bbduk.refstats.txt":
+          type: file
+          description: |
+            One row per reference FILE, so with a single `ref` it is a one-line
+            summary of reads and bases matched. Cheap to emit and useful when a
+            caller passes several references.
+          pattern: "*.bbduk.refstats.txt"
+          ontologies: []
   versions_bbduk:
     - - ${task.process}:
           type: string
