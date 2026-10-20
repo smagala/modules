@@ -121,8 +121,8 @@
                         "single_end": false
                     },
                     [
-                        "test_1_fastqc_data.txt:md5,8fe5b37827c655d1619e2ba733dc1b73",
-                        "test_2_fastqc_data.txt:md5,e57bc70afbbb6912d17b7c7325a1ae7d"
+                        "test_R1_fastqc_data.txt:md5,8fe5b37827c655d1619e2ba733dc1b73",
+                        "test_R2_fastqc_data.txt:md5,e57bc70afbbb6912d17b7c7325a1ae7d"
                     ]
                 ]
             ],
@@ -133,8 +133,8 @@
                         "single_end": false
                     },
                     [
-                        "test_1_summary.txt:md5,577a4416052f18395552deafec6156c6",
-                        "test_2_summary.txt:md5,509fc1fe165f565fec8376d2276c8cd8"
+                        "test_R1_summary.txt:md5,577a4416052f18395552deafec6156c6",
+                        "test_R2_summary.txt:md5,509fc1fe165f565fec8376d2276c8cd8"
                     ]
                 ]
             ],
@@ -146,10 +146,10 @@
                 ]
             ]
         ],
-        "timestamp": "2026-08-06T12:58:02.897650264",
+        "timestamp": "2026-10-20T12:50:40.91373404",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2 - fastq - paired_end - stub": {
@@ -162,8 +162,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -174,8 +174,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -186,8 +186,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -205,8 +205,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -217,8 +217,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -229,8 +229,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -243,10 +243,10 @@
                 ]
             }
         ],
-        "timestamp": "2026-08-06T12:58:10.218562072",
+        "timestamp": "2026-10-20T12:50:47.695475117",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     }
 }

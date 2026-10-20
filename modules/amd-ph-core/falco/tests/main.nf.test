@@ -56,9 +56,15 @@ nextflow_process {
                 { assert process.success },
                 // Each mate must get its own files - a single falco invocation over
                 // both mates would overwrite R1's output with R2's.
+                //
+                // The names come from the mate's position in the staged list, not
+                // from its filename, so they are stable whatever the sequencer
+                // called the input. Asserted explicitly: MultiQC derives sample
+                // names from these filenames, so a rename silently splits or
+                // merges samples in the report.
                 { assert process.out.txt[0][1].size() == 2 },
-                { assert process.out.txt[0][1][0] ==~ ".*/test_1_fastqc_data.txt" },
-                { assert process.out.txt[0][1][1] ==~ ".*/test_2_fastqc_data.txt" },
+                { assert process.out.txt[0][1][0] ==~ ".*/test_R1_fastqc_data.txt" },
+                { assert process.out.txt[0][1][1] ==~ ".*/test_R2_fastqc_data.txt" },
                 { assert snapshot(
                     process.out.txt,
                     process.out.summary,
@@ -112,8 +118,8 @@ nextflow_process {
                 { assert process.success },
                 // The stub must mirror the real paired-end naming, or downstream
                 // stub runs will not exercise MultiQC's parsing path.
-                { assert process.out.txt[0][1][0] ==~ ".*/test_1_fastqc_data.txt" },
-                { assert process.out.txt[0][1][1] ==~ ".*/test_2_fastqc_data.txt" },
+                { assert process.out.txt[0][1][0] ==~ ".*/test_R1_fastqc_data.txt" },
+                { assert process.out.txt[0][1][1] ==~ ".*/test_R2_fastqc_data.txt" },
                 { assert snapshot(process.out).match() }
             )
         }
