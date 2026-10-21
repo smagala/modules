@@ -8,6 +8,7 @@ nextflow_process {
     tag "modules"
     tag "modules_amdphcore"
     tag "daisribosome"
+    tag "tests/extract_reference"
 
     // Row order within ribosome's outputs is not guaranteed across runs, so
     // content is hashed after sorting lines rather than compared byte-for-byte
@@ -19,7 +20,7 @@ nextflow_process {
 
         setup {
             run("EXTRACT_REFERENCE") {
-                script "./extract_reference.nf"
+                script "../tests/extract_reference/main.nf"
                 process {
                     """
                     input[0] = Channel.of([ [ id:'influenza_full' ], "flu" ])
@@ -71,7 +72,7 @@ nextflow_process {
 
         setup {
             run("EXTRACT_REFERENCE") {
-                script "./extract_reference.nf"
+                script "../tests/extract_reference/main.nf"
                 process {
                     """
                     input[0] = Channel.of([ [ id:'sarscov2_full' ], "cov" ])
@@ -125,7 +126,7 @@ nextflow_process {
 
         setup {
             run("EXTRACT_UNANNOTATED_REFERENCE") {
-                script "./extract_reference.nf"
+                script "../tests/extract_reference/main.nf"
                 process {
                     """
                     input[0] = Channel.of([ [ id:'cov_default_ctype' ], "cov" ])
@@ -208,7 +209,7 @@ nextflow_process {
 
         setup {
             run("EXTRACT_REFERENCE") {
-                script "./extract_reference.nf"
+                script "../tests/extract_reference/main.nf"
                 process {
                     """
                     input[0] = Channel.of([ [ id:'rsv_full' ], "rsv" ])
@@ -261,7 +262,7 @@ nextflow_process {
 
         setup {
             run("EXTRACT_REFERENCE") {
-                script "./extract_reference.nf"
+                script "../tests/extract_reference/main.nf"
                 process {
                     """
                     input[0] = Channel.of([ [ id:'influenza_stub' ], "flu" ])
