@@ -10,6 +10,10 @@
 
 ## Pipeline tools
 
+- [DAIS-ribosome](https://github.com/CDCgov/dais-ribosome)
+
+  > Shepard SS, Chettleburgh WD, and DAIS-ribosome contributors. DAIS-ribosome: annotation and coordinate mapping of coding and protein sequences for virus genomes. Version 2.1.0. 2026.
+
 ## Software packaging/containerisation tools
 
 - [Anaconda](https://anaconda.com)

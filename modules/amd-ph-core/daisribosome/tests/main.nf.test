@@ -1,0 +1,306 @@
+nextflow_process {
+
+    name "Test Process DAISRIBOSOME"
+    script "../main.nf"
+    process "DAISRIBOSOME"
+    config "./nextflow.config"
+
+    tag "modules"
+    tag "modules_amdphcore"
+    tag "daisribosome"
+    tag "tests/extract_reference"
+
+    // Row order within ribosome's outputs is not guaranteed across runs, so
+    // content is hashed after sorting lines rather than compared byte-for-byte
+    // (confirmed reproducible across repeat runs at cpus=1). Coordinate-level
+    // annotation accuracy is ribosome's own concern; these tests only confirm
+    // the wrapper invokes it correctly and stages its outputs.
+
+    test("influenza - full bundled reference - flu") {
+
+        setup {
+            run("EXTRACT_REFERENCE") {
+                script "../tests/extract_reference/main.nf"
+                process {
+                    """
+                    input[0] = Channel.of([ [ id:'influenza_full' ], "flu" ])
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = EXTRACT_REFERENCE.out.fasta
+                input[1] = "flu"
+                """
+            }
+        }
+
+        then {
+            def sortedMd5 = { f -> f.readLines().sort().join("\n").bytes.md5() }
+            def productSeq = path(process.out.product_seq[0][1])
+            def genomeSeq  = path(process.out.genome_seq[0][1])
+            def auxiliaryOutputs = [
+                [path(process.out.product_ins[0][1]), "influenza_full.ins.txt"],
+                [path(process.out.product_del[0][1]), "influenza_full.del.txt"],
+                [path(process.out.genome_ins[0][1]),  "influenza_full.gen_ins.txt"],
+                [path(process.out.genome_del[0][1]),  "influenza_full.gen_del.txt"]
+            ]
+
+            assertAll(
+                { assert process.success },
+                { assert process.out.product_seq[0][0].id == "influenza_full" },
+                { assert productSeq.getFileName().toString() == "influenza_full.seq.txt" },
+                { assert sortedMd5(productSeq) == "2c04e6c710aa54644062e7cc6bcb07f4" },
+                { assert genomeSeq.getFileName().toString() == "influenza_full.gen_seq.txt" },
+                { assert sortedMd5(genomeSeq) == "073b6faca4a9e04ea5994b94ee33be29" },
+                {
+                    auxiliaryOutputs.each { output, expectedName ->
+                        assert output.getFileName().toString() == expectedName
+                        assert output.toFile().isFile()
+                    }
+                },
+                { assert process.out.versions_daisribosome == [["DAISRIBOSOME", "dais-ribosome", "2.1.0"]] },
+                { assert snapshot(process.out.versions_daisribosome).match() }
+            )
+        }
+    }
+
+    test("sarscov2 - full bundled reference - cov") {
+
+        setup {
+            run("EXTRACT_REFERENCE") {
+                script "../tests/extract_reference/main.nf"
+                process {
+                    """
+                    input[0] = Channel.of([ [ id:'sarscov2_full' ], "cov" ])
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = EXTRACT_REFERENCE.out.fasta
+                input[1] = "cov"
+                """
+            }
+        }
+
+        then {
+            def sortedMd5 = { f -> f.readLines().sort().join("\n").bytes.md5() }
+            def productSeq = path(process.out.product_seq[0][1])
+            def genomeSeq  = path(process.out.genome_seq[0][1])
+            def auxiliaryOutputs = [
+                [path(process.out.product_ins[0][1]), "sarscov2_full.ins.txt"],
+                [path(process.out.product_del[0][1]), "sarscov2_full.del.txt"],
+                [path(process.out.genome_ins[0][1]),  "sarscov2_full.gen_ins.txt"],
+                [path(process.out.genome_del[0][1]),  "sarscov2_full.gen_del.txt"]
+            ]
+
+            assertAll(
+                { assert process.success },
+                { assert process.out.product_seq[0][0].id == "sarscov2_full" },
+                { assert productSeq.getFileName().toString() == "sarscov2_full.seq.txt" },
+                { assert sortedMd5(productSeq) == "e4274260c1c23bfd4fe3df93b94d9350" },
+                { assert genomeSeq.getFileName().toString() == "sarscov2_full.gen_seq.txt" },
+                { assert sortedMd5(genomeSeq) == "eb18165f63877930978382e53c9b222a" },
+                {
+                    auxiliaryOutputs.each { output, expectedName ->
+                        assert output.getFileName().toString() == expectedName
+                        assert output.toFile().isFile()
+                    }
+                },
+                { assert process.out.versions_daisribosome == [["DAISRIBOSOME", "dais-ribosome", "2.1.0"]] },
+                { assert snapshot(process.out.versions_daisribosome).match() }
+            )
+        }
+    }
+
+    test("cov - unannotated bundled reference - default ctype") {
+
+        config "./default_ctype.config"
+
+        setup {
+            run("EXTRACT_UNANNOTATED_REFERENCE") {
+                script "../tests/extract_reference/main.nf"
+                process {
+                    """
+                    input[0] = Channel.of([ [ id:'cov_default_ctype' ], "cov" ])
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = EXTRACT_UNANNOTATED_REFERENCE.out.fasta
+                input[1] = "cov"
+                """
+            }
+        }
+
+        then {
+            def sortedMd5 = { f -> f.readLines().sort().join("\n").bytes.md5() }
+            def productSeq = path(process.out.product_seq[0][1])
+            def genomeSeq  = path(process.out.genome_seq[0][1])
+
+            // Header annotations were removed with cut, so this normalized
+            // output hash changes if --assume-default-ctype is not forwarded.
+            assertAll(
+                { assert process.success },
+                { assert productSeq.getFileName().toString() == "cov_default_ctype.seq.txt" },
+                { assert sortedMd5(productSeq) == "dbdcd9204d6d169eac77e76d821ade79" },
+                { assert genomeSeq.getFileName().toString() == "cov_default_ctype.gen_seq.txt" },
+                { assert genomeSeq.toFile().isFile() },
+                { assert process.out.versions_daisribosome == [["DAISRIBOSOME", "dais-ribosome", "2.1.0"]] }
+            )
+        }
+    }
+
+    test("sarscov2 - unsupported ctype record - cov") {
+
+        when {
+            process {
+                """
+                def unsupportedCtype = new File("${outputDir}/sarscov2_unsupported_ctype.tsv")
+                unsupportedCtype.text = "bogus_record\\tNOT_A_CTYPE\\tACGTACGTACGT\\n"
+                input[0] = Channel.of([
+                    [ id:'sarscov2_unsupported_ctype' ],
+                    file(unsupportedCtype.path)
+                ])
+                input[1] = "cov"
+                """
+            }
+        }
+
+        then {
+            def outputs = [
+                [path(process.out.product_seq[0][1]), "sarscov2_unsupported_ctype.seq.txt"],
+                [path(process.out.product_ins[0][1]), "sarscov2_unsupported_ctype.ins.txt"],
+                [path(process.out.product_del[0][1]), "sarscov2_unsupported_ctype.del.txt"],
+                [path(process.out.genome_seq[0][1]),  "sarscov2_unsupported_ctype.gen_seq.txt"],
+                [path(process.out.genome_ins[0][1]),  "sarscov2_unsupported_ctype.gen_ins.txt"],
+                [path(process.out.genome_del[0][1]),  "sarscov2_unsupported_ctype.gen_del.txt"]
+            ]
+
+            // An explicitly unsupported ctype is not fatal: ribosome exits 0,
+            // reports the unsupported ctype on stdout, and writes empty outputs.
+            assertAll(
+                { assert process.success },
+                {
+                    outputs.each { output, expectedName ->
+                        assert output.getFileName().toString() == expectedName
+                        assert output.toFile().isFile()
+                        assert output.toFile().length() == 0
+                    }
+                },
+                { assert process.out.versions_daisribosome == [["DAISRIBOSOME", "dais-ribosome", "2.1.0"]] },
+                { assert snapshot(process.out.versions_daisribosome).match() }
+            )
+        }
+    }
+
+    test("rsv - full bundled reference - rsv") {
+
+        setup {
+            run("EXTRACT_REFERENCE") {
+                script "../tests/extract_reference/main.nf"
+                process {
+                    """
+                    input[0] = Channel.of([ [ id:'rsv_full' ], "rsv" ])
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = EXTRACT_REFERENCE.out.fasta
+                input[1] = "rsv"
+                """
+            }
+        }
+
+        then {
+            def sortedMd5 = { f -> f.readLines().sort().join("\n").bytes.md5() }
+            def productSeq = path(process.out.product_seq[0][1])
+            def genomeSeq  = path(process.out.genome_seq[0][1])
+            def auxiliaryOutputs = [
+                [path(process.out.product_ins[0][1]), "rsv_full.ins.txt"],
+                [path(process.out.product_del[0][1]), "rsv_full.del.txt"],
+                [path(process.out.genome_ins[0][1]),  "rsv_full.gen_ins.txt"],
+                [path(process.out.genome_del[0][1]),  "rsv_full.gen_del.txt"]
+            ]
+
+            assertAll(
+                { assert process.success },
+                { assert productSeq.getFileName().toString() == "rsv_full.seq.txt" },
+                { assert sortedMd5(productSeq) == "60b96ead62eeb700b3c96d5ad54584e5" },
+                { assert genomeSeq.getFileName().toString() == "rsv_full.gen_seq.txt" },
+                { assert sortedMd5(genomeSeq) == "216c1080f0d251f499685329a84c3c3b" },
+                {
+                    auxiliaryOutputs.each { output, expectedName ->
+                        assert output.getFileName().toString() == expectedName
+                        assert output.toFile().isFile()
+                    }
+                },
+                { assert process.out.versions_daisribosome == [["DAISRIBOSOME", "dais-ribosome", "2.1.0"]] },
+                { assert snapshot(process.out.versions_daisribosome).match() }
+            )
+        }
+    }
+
+    test("influenza - full bundled reference - flu - stub") {
+
+        options "-stub"
+
+        setup {
+            run("EXTRACT_REFERENCE") {
+                script "../tests/extract_reference/main.nf"
+                process {
+                    """
+                    input[0] = Channel.of([ [ id:'influenza_stub' ], "flu" ])
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = EXTRACT_REFERENCE.out.fasta
+                input[1] = "flu"
+                """
+            }
+        }
+
+        then {
+            def outputs = [
+                [path(process.out.product_seq[0][1]), "influenza_stub.seq.txt"],
+                [path(process.out.product_ins[0][1]), "influenza_stub.ins.txt"],
+                [path(process.out.product_del[0][1]), "influenza_stub.del.txt"],
+                [path(process.out.genome_seq[0][1]),  "influenza_stub.gen_seq.txt"],
+                [path(process.out.genome_ins[0][1]),  "influenza_stub.gen_ins.txt"],
+                [path(process.out.genome_del[0][1]),  "influenza_stub.gen_del.txt"]
+            ]
+            assertAll(
+                { assert process.success },
+                {
+                    outputs.each { output, expectedName ->
+                        assert output.getFileName().toString() == expectedName
+                        assert output.toFile().isFile()
+                        assert output.toFile().length() == 0
+                    }
+                },
+                { assert process.out.versions_daisribosome == [["DAISRIBOSOME", "dais-ribosome", "2.1.0"]] },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

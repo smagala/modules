@@ -1,0 +1,187 @@
+{
+    "influenza - full bundled reference - flu": {
+        "content": [
+            [
+                [
+                    "DAISRIBOSOME",
+                    "dais-ribosome",
+                    "2.1.0"
+                ]
+            ]
+        ],
+        "timestamp": "2026-09-02T08:19:17.226515",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    },
+    "sarscov2 - full bundled reference - cov": {
+        "content": [
+            [
+                [
+                    "DAISRIBOSOME",
+                    "dais-ribosome",
+                    "2.1.0"
+                ]
+            ]
+        ],
+        "timestamp": "2026-09-02T08:33:44.42303",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    },
+    "sarscov2 - unsupported ctype record - cov": {
+        "content": [
+            [
+                [
+                    "DAISRIBOSOME",
+                    "dais-ribosome",
+                    "2.1.0"
+                ]
+            ]
+        ],
+        "timestamp": "2026-09-02T08:33:52.85676",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    },
+    "rsv - full bundled reference - rsv": {
+        "content": [
+            [
+                [
+                    "DAISRIBOSOME",
+                    "dais-ribosome",
+                    "2.1.0"
+                ]
+            ]
+        ],
+        "timestamp": "2026-09-02T09:40:20.000000",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    },
+    "influenza - full bundled reference - flu - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.seq.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.ins.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.del.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.gen_seq.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "4": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.gen_ins.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "5": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.gen_del.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "6": [
+                    [
+                        "DAISRIBOSOME",
+                        "dais-ribosome",
+                        "2.1.0"
+                    ]
+                ],
+                "genome_del": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.gen_del.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "genome_ins": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.gen_ins.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "genome_seq": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.gen_seq.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "product_del": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.del.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "product_ins": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.ins.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "product_seq": [
+                    [
+                        {
+                            "id": "influenza_stub"
+                        },
+                        "influenza_stub.seq.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions_daisribosome": [
+                    [
+                        "DAISRIBOSOME",
+                        "dais-ribosome",
+                        "2.1.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-09-02T08:33:50.072224",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    }
+}

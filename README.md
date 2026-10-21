@@ -91,6 +91,10 @@ We use the `nf-core/tools` package with a custom `--git-remote` to manage module
 - `varpipe/structuralvariants` - Structural variant analysis
 - `varpipe/tar` - Archive pipeline outputs
 
+### Virus annotation
+
+- `daisribosome` - Annotate supported virus genomes and protein products with DAIS-ribosome
+
 ## Available subworkflows
 
 - `fastq_clockwork_decontaminate` - Read decontamination using Clockwork

@@ -1,0 +1,137 @@
+name: daisribosome
+description: |
+  Annotate viral coding sequences and protein products with DAIS-ribosome,
+  producing database-oriented product- and genome-level outputs.
+
+  Pass optional flags through ext.args. Notably `--assume-default-ctype <ctype>`
+  assigns an exact ctype to every unannotated record, bypassing ctype
+  classification. Input must be on the forward strand when it is set.
+keywords:
+  - annotation
+  - viral genomics
+  - fasta
+  - tsv
+  - influenza
+  - coronavirus
+  - rsv
+tools:
+  - dais-ribosome:
+      description: "Annotate CDS and amino-acid products for supported virus genomes."
+      homepage: "https://github.com/CDCgov/dais-ribosome"
+      documentation: "https://github.com/CDCgov/dais-ribosome/tree/v2.1.0"
+      tool_dev_url: "https://github.com/CDCgov/dais-ribosome"
+      doi: "no DOI available"
+      licence:
+        - "Apache-2.0"
+      identifier: ""
+      args_id: "$args"
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test' ]
+    - sequences:
+        type: file
+        description: |
+          Mandatory. One uncompressed FASTA or TSV file containing one or more
+          viral sequences. Annotated records must be on the forward strand.
+        pattern: "*.{fa,fasta,fna,fas,tsv,txt}"
+        ontologies:
+          - edam: "http://edamontology.org/format_1929"
+          - edam: "http://edamontology.org/format_3475"
+  - annotation_module:
+      type: string
+      description: Mandatory. Bundled DAIS-ribosome annotation resource set to use.
+      enum:
+        - flu
+        - cov
+        - rsv
+output:
+  product_seq:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.seq.txt":
+          type: file
+          description: Headerless TSV of product sequences, alignments, hashes, and coordinate mappings
+          pattern: "*.seq.txt"
+          ontologies:
+            - edam: "http://edamontology.org/format_3475"
+  product_ins:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.ins.txt":
+          type: file
+          description: Headerless TSV of product-level insertions; may be empty
+          pattern: "*.ins.txt"
+          ontologies:
+            - edam: "http://edamontology.org/format_3475"
+  product_del:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.del.txt":
+          type: file
+          description: Headerless TSV of product-level deletions; may be empty
+          pattern: "*.del.txt"
+          ontologies:
+            - edam: "http://edamontology.org/format_3475"
+  genome_seq:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.gen_seq.txt":
+          type: file
+          description: Headerless TSV of genome sequences, alignments, hashes, and coordinates
+          pattern: "*.gen_seq.txt"
+          ontologies:
+            - edam: "http://edamontology.org/format_3475"
+  genome_ins:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.gen_ins.txt":
+          type: file
+          description: Headerless TSV of genome-level insertions; may be empty
+          pattern: "*.gen_ins.txt"
+          ontologies:
+            - edam: "http://edamontology.org/format_3475"
+  genome_del:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.gen_del.txt":
+          type: file
+          description: Headerless TSV of genome-level deletions; may be empty
+          pattern: "*.gen_del.txt"
+          ontologies:
+            - edam: "http://edamontology.org/format_3475"
+  versions_daisribosome:
+    - - ${task.process}:
+          type: string
+          description: Process name, emitted to the versions topic channel
+      - dais-ribosome:
+          type: string
+          description: Tool name, emitted to the versions topic channel
+      - ribosome --version | cut -d ' ' -f 2:
+          type: eval
+          description: Expression used to obtain the DAIS-ribosome version
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: Process name, emitted to the versions topic channel
+      - dais-ribosome:
+          type: string
+          description: Tool name, emitted to the versions topic channel
+      - ribosome --version | cut -d ' ' -f 2:
+          type: eval
+          description: Expression used to obtain the DAIS-ribosome version
+authors:
+  - "@sammysheep"
+  - "@willchet"
+maintainers:
+  - "@sammysheep"
+  - "@willchet"
