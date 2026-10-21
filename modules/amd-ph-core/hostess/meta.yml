@@ -1,0 +1,169 @@
+name: hostess
+description: |
+  Remove host reads in a single alignment pass, optionally keeping the removed
+  reads as a coordinate-sorted BAM.
+
+  A rework of hostile using the same method: align against a host index and
+  keep the reads that align to nothing. hostile discards the host reads, so
+  recovering them requires a second alignment pass with --invert, which yields
+  FASTQs rather than something viewable. hostess splits the single alignment
+  stream instead, so the removed reads can be written straight out as a sorted,
+  indexed BAM and inspected against the host reference.
+
+  The BAM outputs are produced only when `--bam` is passed via ext.args, so the
+  default output matches hostile's.
+keywords:
+  - dehost
+  - decontamination
+  - host removal
+  - bowtie2
+  - minimap2
+  - fastq
+tools:
+  - hostess:
+      description: "Single-pass host read removal that can keep the removed reads as a BAM"
+      homepage: "https://github.com/smagala/hostess"
+      documentation: "https://github.com/smagala/hostess"
+      tool_dev_url: "https://github.com/smagala/hostess"
+      licence:
+        - "Apache-2.0"
+      identifier: ""
+      args_id: "$args"
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test', single_end:false ]
+    - reads:
+        type: file
+        description: |
+          Mandatory. One FASTQ for single-end or long-read input, or two mate
+          files for paired-end input.
+        pattern: "*.{fastq,fq}{,.gz}"
+        ontologies:
+          - edam: http://edamontology.org/format_1930
+  - - reference_name:
+        type: string
+        description: |
+          Mandatory. Index basename within reference_dir. For bowtie2 this is
+          the index prefix; for minimap2 it is a reference FASTA or MMI.
+    - reference_dir:
+        type: directory
+        description: |
+          Mandatory. Directory holding the index files themselves, not its
+          parent.
+  - aligner:
+      type: string
+      description: |
+        Mandatory. Either "bowtie2" or "minimap2" (hostess also accepts
+        "auto"). This selects the aligner AND the shape of --index, because for
+        hostess they are one decision: bowtie2 takes an index PREFIX shared by
+        several .bt2 files, while minimap2 takes a single reference FASTA or
+        .mmi FILE. Supplied as an input rather than read from a meta field so
+        the module stays within meta.id and meta.single_end, and so the caller
+        -- which already knows whether it is routing long or short reads --
+        remains the single source of truth.
+output:
+  fastq:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', single_end:false ]
+      - "*.clean*.fastq.gz":
+          type: file
+          description: Reads with host sequence removed
+          pattern: "*.clean*.fastq.gz"
+          ontologies:
+            - edam: http://edamontology.org/format_1930
+  json:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', single_end:false ]
+      - "*.hostess.json":
+          type: file
+          description: |
+            Read counts and run parameters. Matches the shape MultiQC's Hostile
+            module expects, so it is parsed with no extra configuration.
+          pattern: "*.hostess.json"
+          ontologies: []
+  bam:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', single_end:false ]
+      - "*.host.bam":
+          type: file
+          description: |
+            Removed reads, coordinate-sorted. Only produced when --bam is
+            passed via ext.args.
+          pattern: "*.host.bam"
+          ontologies:
+            - edam: http://edamontology.org/format_2572
+  bai:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', single_end:false ]
+      - "*.host.bam.bai":
+          type: file
+          description: Index for the removed-read BAM. Only produced with --bam.
+          pattern: "*.host.bam.bai"
+          ontologies:
+            - edam: http://edamontology.org/format_3327
+  flagstat:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', single_end:false ]
+      - "*.host.flagstat.txt":
+          type: file
+          description: |
+            samtools flagstat over the removed reads, written verbatim so
+            MultiQC's samtools module parses it. Only produced with --bam.
+          pattern: "*.host.flagstat.txt"
+          ontologies: []
+  stats:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', single_end:false ]
+      - "*.host.stats.txt":
+          type: file
+          description: |
+            samtools stats over the removed reads, written verbatim so
+            MultiQC's samtools module parses it. Only produced with --bam.
+          pattern: "*.host.stats.txt"
+          ontologies: []
+  versions_hostess:
+    - - "${task.process}":
+          type: string
+          description: Process name, emitted to the `versions` topic channel
+      - hostess:
+          type: string
+          description: Tool name, emitted to the `versions` topic channel
+      - hostess --version | sed 's/.* //':
+          type: eval
+          description: The expression to obtain the version of the tool
+topics:
+  versions:
+    - - "${task.process}":
+          type: string
+          description: Process name, emitted to the `versions` topic channel
+      - hostess:
+          type: string
+          description: Tool name, emitted to the `versions` topic channel
+      - hostess --version | sed 's/.* //':
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"
