@@ -86,7 +86,7 @@
                         "id": "test",
                         "single_end": true
                     },
-                    "test_fastqc_data.txt:md5,8fe5b37827c655d1619e2ba733dc1b73"
+                    "test_fastqc_data.txt:md5,16bc91c7edb3237df942ccbc15186b82"
                 ]
             ],
             [
@@ -95,7 +95,7 @@
                         "id": "test",
                         "single_end": true
                     },
-                    "test_summary.txt:md5,577a4416052f18395552deafec6156c6"
+                    "test_summary.txt:md5,58e633c32b2fdde961ea56098fe9d9f7"
                 ]
             ],
             [
@@ -106,10 +106,10 @@
                 ]
             ]
         ],
-        "timestamp": "2026-08-06T12:57:58.824937406",
+        "timestamp": "2026-10-20T13:38:01.681587316",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2 - fastq - paired_end": {
@@ -121,8 +121,8 @@
                         "single_end": false
                     },
                     [
-                        "test_1_fastqc_data.txt:md5,8fe5b37827c655d1619e2ba733dc1b73",
-                        "test_2_fastqc_data.txt:md5,e57bc70afbbb6912d17b7c7325a1ae7d"
+                        "test_R1_fastqc_data.txt:md5,c46b4b5445458fc4d02a10d8a3c92236",
+                        "test_R2_fastqc_data.txt:md5,d45bba8b8d9fe61dd6130d99fba0fcbd"
                     ]
                 ]
             ],
@@ -133,8 +133,8 @@
                         "single_end": false
                     },
                     [
-                        "test_1_summary.txt:md5,577a4416052f18395552deafec6156c6",
-                        "test_2_summary.txt:md5,509fc1fe165f565fec8376d2276c8cd8"
+                        "test_R1_summary.txt:md5,e6f918f7b8307472062735529c46cb9c",
+                        "test_R2_summary.txt:md5,b6aac37a107930cabf41e5a843e9f3b7"
                     ]
                 ]
             ],
@@ -146,10 +146,10 @@
                 ]
             ]
         ],
-        "timestamp": "2026-08-06T12:58:02.897650264",
+        "timestamp": "2026-10-20T13:38:05.295163502",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2 - fastq - paired_end - stub": {
@@ -162,8 +162,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -174,8 +174,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -186,8 +186,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -205,8 +205,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_report.html:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -217,8 +217,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -229,8 +229,8 @@
                             "single_end": false
                         },
                         [
-                            "test_1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
-                            "test_2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                            "test_R1_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test_R2_fastqc_data.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
                         ]
                     ]
                 ],
@@ -243,10 +243,10 @@
                 ]
             }
         ],
-        "timestamp": "2026-08-06T12:58:10.218562072",
+        "timestamp": "2026-10-20T12:50:47.695475117",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     }
 }
