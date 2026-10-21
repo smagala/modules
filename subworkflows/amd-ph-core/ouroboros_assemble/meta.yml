@@ -1,0 +1,122 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "ouroboros_assemble"
+description: |
+  Polish and call every bin, one task per bin.
+  The polish loop turns inside OUROBOROS_POLISH, so this subworkflow holds no loop mechanics: no
+  .recurse(), no bundled per-sample state, no bounded groupTuple re-aggregation, and no
+  nextflow.preview.recursion. Each input row is one bin, and bins are an ordinary scatter that run
+  concurrently and converge independently.
+  What that removes was all workaround. .recurse() is value-channel only, so the previous design
+  bundled every gene of a sample into ONE recursion state, fanned out per gene each round, and
+  re-aggregated under a bounded groupKey — which forced a round barrier where every bin waited on the
+  slowest bin at every iteration. A skip-converged filter was then added so a converged bin would stop
+  re-aligning against an identical reference, a workaround for a barrier that only existed because of
+  the bundling. With one task per bin none of it is needed.
+  Settings arrive as Maps rather than roughly twenty-six positional values, and required keys are
+  validated on entry so a typo fails loudly here instead of surfacing as a null inside a task script.
+keywords:
+  - assembly
+  - polishing
+  - variant-calling
+  - consensus
+  - scatter
+components:
+  - ouroboros/polish
+  - ouroboros/call
+  - ouroboros/report
+
+input:
+  - ch_per_bin:
+      type: file
+      description: |
+        One row per BIN: its sorted reads across all gather rounds, its refined reference, and the
+        sample deflation index. This is the scatter unit.
+        Structure: [ val(meta), val(gene), path(sorted_reads), path(ref), path(deflation) ]
+      pattern: "*.{fa,fasta}"
+  - align_opts:
+      type: map
+      description: |
+        Alignment and reference-refinement settings; see modules/amd-ph-core/ouroboros/polish for keys.
+        Structure: val(align_opts)
+  - call_opts:
+      type: map
+      description: |
+        Variant-calling and consensus settings; see modules/amd-ph-core/ouroboros/call for keys.
+        Structure: val(call_opts)
+  - max_iter:
+      type: integer
+      description: |
+        Safety cap on polish iterations. Convergence normally stops the loop first.
+        Structure: val(max_iter)
+
+output:
+  - consensus:
+      type: file
+      description: |
+        Plurality consensus per gene.
+        Structure: [ val(meta), val(gene), path(fasta) ]
+      pattern: "*.fasta"
+  - variants:
+      type: file
+      description: |
+        Called variants per gene.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-variants.txt"
+  - alleles:
+      type: file
+      description: |
+        Per-position allele counts for every site.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-allAlleles.txt"
+  - coverage:
+      type: file
+      description: |
+        Per-position depth at true per-read depth, in the consensus frame.
+        Structure: [ val(meta), val(gene), path(txt) ]
+      pattern: "*-coverage.txt"
+  - bam:
+      type: file
+      description: |
+        Coordinate-sorted alignments against the converged reference.
+        Structure: [ val(meta), val(gene), path(bam) ]
+      pattern: "*.bam"
+  - vcf:
+      type: file
+      description: |
+        VCFv4.2 in the assembled consensus frame, so within-sample variation only.
+        Structure: [ val(meta), val(gene), path(vcf) ]
+      pattern: "*.vcf"
+  - amended:
+      type: file
+      description: |
+        Consensus with called variants applied.
+        Structure: [ val(meta), val(gene), path(fa) ]
+      pattern: "*.fa"
+  - amended_len:
+      type: integer
+      description: |
+        Length of the amended consensus, 0 when absent; the downstream stitch gate needs it as a value.
+        Structure: [ val(meta), val(gene), val(length) ]
+  - indels_folded:
+      type: integer
+      description: |
+        1 iff an indel was folded into the reference in any iteration, OR-accumulated.
+        Structure: [ val(meta), val(gene), val(0|1) ]
+  - timings:
+      type: file
+      description: |
+        Per-iteration seconds, alignment score, convergence flag, and why the loop stopped.
+        Structure: [ val(meta), val(gene), path(iter_timings.tsv) ]
+      pattern: "iter_timings.tsv"
+  - versions:
+      type: file
+      description: |
+        File containing software versions.
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

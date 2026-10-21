@@ -1,0 +1,79 @@
+name: ouroboros_genomereport
+description: |
+  Per-sample genomes and contamination screen.
+  For every assembled genome of a sample, aligns its consensus to ITS OWN panel record and tabulates
+  read count, consensus length, percent called, identity to that record, and aligned fraction. The last
+  two are the realness annotation: they separate a genuine co-infection or contaminant from a
+  conserved-region cross-map echo of the primary, which otherwise presents as a second genome.
+  This is a CROSS-BIN operation — it compares every genome of a sample against every other — so it
+  cannot run inside the per-bin assemble scatter. It runs once per sample, after all of that sample's
+  bins are in.
+  Target names come from each FASTA header rather than the filename, so the module accepts both the
+  <gene>.stitched.fa and <gene>.fa naming without a rename step upstream.
+keywords:
+  - contamination
+  - co-infection
+  - qc
+  - consensus
+  - screen
+tools:
+  - rammap:
+      description: Pure-Rust minimap2-compatible mapper; aligns each consensus to its own panel record.
+      homepage: https://github.com/jwanglab/rammap
+      documentation: https://github.com/jwanglab/rammap
+      licence:
+        - MIT
+      identifier: ""
+  - genome_report.py:
+      description: Tabulates per-genome read count, length, percent called, identity and aligned fraction
+        from the per-target alignments. Ships in this module's resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - consensuses:
+        type: file
+        description: Every ref-pinned consensus for this sample, one per bin
+        pattern: "*.{fa,fasta}"
+        ontologies: []
+    - panel_ref:
+        type: file
+        description: The panel reference set; each consensus is aligned to its own record within it
+        pattern: "*.{fa,fasta}"
+        ontologies: []
+    - sort_stats:
+        type: file
+        description: Per-gene read counts from gather, for the read-count column. Pass a NO_FILE placeholder
+          to omit (Optional)
+        pattern: "*.txt"
+        ontologies: []
+output:
+  report:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.genomes.tsv":
+          type: file
+          description: One row per genome — reads, length, percent called, identity to its own panel record,
+            aligned fraction
+          pattern: "*.genomes.tsv"
+          ontologies:
+            - edam: http://edamontology.org/format_3475
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: versions.yml
+        ontologies:
+          - edam: http://edamontology.org/format_3750
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"

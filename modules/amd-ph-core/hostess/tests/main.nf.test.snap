@@ -1,0 +1,402 @@
+{
+    "sarscov2 - fastq - single_end - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.clean.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.hostess.json:md5,f5bf212678431aa8751e3579adc03b9a"
+                    ]
+                ],
+                "2": [
+                    
+                ],
+                "3": [
+                    
+                ],
+                "4": [
+                    
+                ],
+                "5": [
+                    
+                ],
+                "6": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ],
+                "bai": [
+                    
+                ],
+                "bam": [
+                    
+                ],
+                "fastq": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.clean.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "flagstat": [
+                    
+                ],
+                "json": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.hostess.json:md5,f5bf212678431aa8751e3579adc03b9a"
+                    ]
+                ],
+                "stats": [
+                    
+                ],
+                "versions_hostess": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-08-10T14:24:47.029581188",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    },
+    "sarscov2 - fastq - paired_end - bam - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.clean_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.clean_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.hostess.json:md5,f5bf212678431aa8751e3579adc03b9a"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.bam.bai:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "4": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.flagstat.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "5": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.stats.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "6": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ],
+                "bai": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.bam.bai:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "bam": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "fastq": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.clean_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.clean_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "flagstat": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.flagstat.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "json": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.hostess.json:md5,f5bf212678431aa8751e3579adc03b9a"
+                    ]
+                ],
+                "stats": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.host.stats.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions_hostess": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-08-10T14:24:43.26481059",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    },
+    "sarscov2 - fastq - single_end - minimap2 - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.clean.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.hostess.json:md5,a1bcd1a7bf145f1196fef07714d0b395"
+                    ]
+                ],
+                "2": [
+                    
+                ],
+                "3": [
+                    
+                ],
+                "4": [
+                    
+                ],
+                "5": [
+                    
+                ],
+                "6": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ],
+                "bai": [
+                    
+                ],
+                "bam": [
+                    
+                ],
+                "fastq": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.clean.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "flagstat": [
+                    
+                ],
+                "json": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.hostess.json:md5,a1bcd1a7bf145f1196fef07714d0b395"
+                    ]
+                ],
+                "stats": [
+                    
+                ],
+                "versions_hostess": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-10-20T13:20:18.665001969",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "sarscov2 - fastq - paired_end - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.clean_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.clean_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.hostess.json:md5,f5bf212678431aa8751e3579adc03b9a"
+                    ]
+                ],
+                "2": [
+                    
+                ],
+                "3": [
+                    
+                ],
+                "4": [
+                    
+                ],
+                "5": [
+                    
+                ],
+                "6": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ],
+                "bai": [
+                    
+                ],
+                "bam": [
+                    
+                ],
+                "fastq": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        [
+                            "test.clean_1.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940",
+                            "test.clean_2.fastq.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                        ]
+                    ]
+                ],
+                "flagstat": [
+                    
+                ],
+                "json": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.hostess.json:md5,f5bf212678431aa8751e3579adc03b9a"
+                    ]
+                ],
+                "stats": [
+                    
+                ],
+                "versions_hostess": [
+                    [
+                        "HOSTESS",
+                        "hostess",
+                        ""
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-08-10T14:24:39.555462654",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.10.4"
+        }
+    }
+}

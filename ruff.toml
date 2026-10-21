@@ -10,6 +10,10 @@ known-first-party = ["nf_core"]
 
 [lint.per-file-ignores]
 "__init__.py" = ["E402", "F401"]
+# ouroboros scripts are ported from IRMA's Perl-era analysis code and validated against cohort
+# output byte-for-byte; renaming variables (N8xx) or rewriting %-formatting (UP031) in them is
+# churn with regression risk and no functional gain. Formatting and all other rules still apply.
+"modules/amd-ph-core/ouroboros/*/resources/usr/bin/*.py" = ["N802", "N803", "N806", "N816", "UP031", "E741"]
 
 [lint.pep8-naming]
 extend-ignore-names = ["mocked_*", "*allOf", "*URI*"]

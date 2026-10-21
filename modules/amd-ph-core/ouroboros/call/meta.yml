@@ -1,0 +1,315 @@
+name: ouroboros_call
+description: |
+  Terminal variant calling and consensus from a converged reference and its SAM.
+  Produces the sorted BAM, the pileup and variant tables, phasing matrices when there are more than two
+  variants, the amended consensus, and a VCF. On paired data the mate pairs are merged before the
+  pileup, while the BAM stays on the raw SAM. One process per gene, so segments call in parallel.
+  Note that the VCF is written in the ASSEMBLED CONSENSUS frame, so it reports within-sample (minority
+  and subclonal) variation only. Fixed differences from the panel reference are absent by construction,
+  because reference refinement moved the reference onto them before calling; reporting those is a
+  separate, additive step.
+keywords:
+  - variant-calling
+  - consensus
+  - vcf
+  - phasing
+  - pileup
+tools:
+  - irma-core:
+      description: Rust reimplementation of IRMA's core routines; merge-sam merges mate pairs before the
+        pileup on the paired path.
+      homepage: https://github.com/CDCgov/irma-core
+      documentation: https://github.com/CDCgov/irma-core
+      licence:
+        - Apache-2.0
+      identifier: ""
+  - samtools:
+      description: SAM to sorted, indexed BAM conversion.
+      homepage: https://www.htslib.org/
+      documentation: https://www.htslib.org/doc/samtools.html
+      licence:
+        - MIT
+      identifier: biotools:samtools
+  - call.py:
+      description: Variant caller over the pileup, supporting the binomial and empirical-Bayes callers with
+        depth-adaptive thresholds. Ships in this module's resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+  - var_call_stats.py:
+      description: Builds the per-position pileup consumed by the caller. Ships in this module's resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+  - amend_consensus.py:
+      description: Applies called variants to the consensus, emitting ambiguity codes above the ambiguity
+        frequency. Ships in this module's resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+  - generate_vcf.py:
+      description: Writes a spec-compliant VCFv4.2 from the caller's tables via pysam. Ships in this module's
+        resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+  - phase.py:
+      description: Variant phasing, emitting the EXPENRD/JACCARD/MUTUALD/NJOINTP square matrices. Ships
+        in this module's resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+  - complete_matrix.py:
+      description: Completes a phasing square matrix. Ships in this module's resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+  - get_pairing_stats.py:
+      description: Summarises mate-pair merge statistics into the paired-error table used by the caller.
+        Ships in this module's resources/usr/bin.
+      homepage: https://github.com/cdcent/oamd-bio-ouroboros
+      documentation: https://github.com/cdcent/oamd-bio-ouroboros
+      licence:
+        - MIT
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information. `single_end` selects the unpaired path.
+          e.g. `[ id:'sample1', single_end:false ]`
+    - gene:
+        type: string
+        description: Target/bin label, which is also the panel reference record ID
+    - ref:
+        type: file
+        description: Converged reference for this gene
+        pattern: "*.{fa,fasta,ref}"
+        ontologies: []
+    - sam:
+        type: file
+        description: Winnowed alignments against that reference
+        pattern: "*.sam"
+        ontologies: []
+  - min_variant_count:
+      type: integer
+      description: Minimum supporting reads for a variant to be reported (Mandatory)
+  - min_variant_freq:
+      type: float
+      description: Minimum alt allele frequency for a variant to be reported (Mandatory)
+  - min_ins_freq:
+      type: float
+      description: Minimum insertion frequency (Mandatory)
+  - min_del_freq:
+      type: float
+      description: Minimum deletion frequency (Mandatory)
+  - min_variant_qual:
+      type: integer
+      description: Minimum mean alt-allele base quality, Phred (Mandatory)
+  - min_column_coverage:
+      type: integer
+      description: Minimum total column coverage for a callable position (Mandatory)
+  - min_confidence:
+      type: float
+      description: Confidence threshold for the not-machine-error test (Mandatory)
+  - sig_level:
+      type: float
+      description: Significance level for the statistical caller (Mandatory)
+  - auto_freq:
+      type: integer
+      description: 1 enables the depth-adaptive minimum frequency, 0 uses the fixed threshold (Mandatory)
+  - min_ambig_freq:
+      type: float
+      description: Minimum frequency at which the amended consensus emits an ambiguity code (Mandatory)
+  - seg_numbers:
+      type: string
+      description: Segment-numbering map for amended consensus headers; empty disables it (Optional)
+  - sort_groups:
+      type: string
+      description: Sort-group map. When empty the panel is treated as non-segmented and header numbering
+        is applied (Optional)
+  - caller:
+      type: string
+      description: Caller selector, e.g. binomial or empirical Bayes (Mandatory)
+  - refchg:
+      type: float
+      description: Frequency at which a variant is written into the consensus as a reference change (Mandatory)
+  - sor:
+      type: float
+      description: Strand-odds-ratio threshold for strand-bias filtering (Mandatory)
+  - amend_indels:
+      type: boolean
+      description: |
+        Fold called indels into the amended consensus so it reflects real length changes. Off by default:
+        the default route sends indels to the VCF and keeps the amended consensus length-locked (Mandatory)
+  - refchg_min_strand_frac:
+      type: float
+      description: Minimum strand fraction for a reference-changing base; 0 disables the guard (Mandatory)
+output:
+  bam:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.bam:
+          type: file
+          description: Coordinate-sorted alignments
+          pattern: "*.bam"
+  bai:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.bam.bai:
+          type: file
+          description: BAM index
+          pattern: "*.bam.bai"
+  consensus:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.fasta:
+          type: file
+          description: Plurality consensus for the gene
+          pattern: "*.fasta"
+  variants:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}-variants.txt:
+          type: file
+          description: Called variants
+          pattern: "*-variants.txt"
+  alleles:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}-allAlleles.txt:
+          type: file
+          description: Per-position allele counts for every site
+          pattern: "*-allAlleles.txt"
+  coverage:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}-coverage.txt:
+          type: file
+          description: Per-position depth at true per-read depth, in the consensus frame
+          pattern: "*-coverage.txt"
+  amended:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - amended_consensus/*.fa:
+          type: file
+          description: Consensus with called variants applied (Optional)
+          pattern: amended_consensus/*.fa
+          ontologies: []
+  amended_len:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - AMENDED_LEN:
+          type: integer
+          description: Length of the amended consensus, 0 when absent. The downstream stitch gate needs
+            this as a value.
+  insertions:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}-insertions.txt:
+          type: file
+          description: Called insertions (Optional)
+          pattern: "*-insertions.txt"
+  deletions:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}-deletions.txt:
+          type: file
+          description: Called deletions (Optional)
+          pattern: "*-deletions.txt"
+  vcf:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}.vcf:
+          type: file
+          description: VCFv4.2 in the assembled consensus frame (Optional)
+          pattern: "*.vcf"
+  pairing:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}-pairingStats.txt:
+          type: file
+          description: Mate-pair merge statistics, paired-end only (Optional)
+          pattern: "*-pairingStats.txt"
+  sqm:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - gene:
+          type: string
+          description: Target/bin label
+      - ${gene}*.sqm:
+          type: file
+          description: Phasing square matrices, emitted only with more than two variants (Optional)
+          pattern: "**.sqm"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: versions.yml
+        ontologies:
+          - edam: http://edamontology.org/format_3750
+authors:
+  - "@smagala"
+maintainers:
+  - "@smagala"
