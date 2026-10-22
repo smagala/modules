@@ -39,6 +39,15 @@ process HOSTESS {
     // to meta.id and meta.single_end, and leaves the caller -- which already
     // knows whether it is routing long or short reads -- the single source of
     // truth for the choice.
+    //
+    // hostess's own --aligner also accepts `auto`, and this module deliberately
+    // does not: choosing the shape of --index IS choosing the aligner, so `auto`
+    // would mean building a bowtie2-style prefix and then letting hostess pick
+    // minimap2, or the reverse. Every unrecognised value fails here rather than
+    // silently taking the bowtie2 branch below.
+    if (!(aligner in ['bowtie2', 'minimap2'])) {
+        error("HOSTESS requires aligner to be 'bowtie2' or 'minimap2', not '${aligner}' (sample '${meta.id}'). hostess accepts 'auto', but this module has to know which index form to build.")
+    }
     def index_ref = aligner == 'minimap2'
         ? (reference_dir.isDirectory() ? "${reference_dir}/${reference_name}.mmi" : reference_dir.toString())
         : "${reference_dir}/${reference_name}"
@@ -64,6 +73,13 @@ process HOSTESS {
     """
 
     stub:
+    // Same guard as the script path. The stub never builds an index path, so it
+    // has nothing to get wrong, but a stub that accepts an aligner the real run
+    // rejects is a stub that does not stand in for the real run -- and these are
+    // stub-only tests, so this is also where the rejection is testable.
+    if (!(aligner in ['bowtie2', 'minimap2'])) {
+        error("HOSTESS requires aligner to be 'bowtie2' or 'minimap2', not '${aligner}' (sample '${meta.id}'). hostess accepts 'auto', but this module has to know which index form to build.")
+    }
     def prefix   = task.ext.prefix ?: "${meta.id}"
     def want_bam = (task.ext.args ?: '').contains('--bam')
     def fastqs   = (meta.single_end

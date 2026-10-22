@@ -56,9 +56,12 @@ input:
   - aligner:
       type: string
       description: |
-        Mandatory. Either "bowtie2" or "minimap2" (hostess also accepts
-        "auto"). This selects the aligner AND the shape of --index, because for
-        hostess they are one decision: bowtie2 takes an index PREFIX shared by
+        Mandatory. Either "bowtie2" or "minimap2"; the module fails on any
+        other value. hostess's own --aligner additionally accepts "auto", which
+        this module rejects: it selects the aligner AND the shape of --index,
+        and that is one decision, so it cannot be deferred to the tool after
+        the index path has already been built.
+        For hostess the two are one decision because bowtie2 takes an index PREFIX shared by
         several .bt2 files, while minimap2 takes a single reference FASTA or
         .mmi FILE. Supplied as an input rather than read from a meta field so
         the module stays within meta.id and meta.single_end, and so the caller

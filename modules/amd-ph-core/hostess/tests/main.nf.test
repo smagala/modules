@@ -139,4 +139,33 @@ nextflow_process {
             )
         }
     }
+
+    // hostess's own --aligner accepts `auto`; this module does not, because the
+    // shape of --index is decided here, before hostess runs. `auto` used to fall
+    // through to the bowtie2 branch, which would hand a bowtie2 index prefix to
+    // a run that may then choose minimap2.
+    test("aligner - auto - rejected - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test', single_end:true ],
+                    [ file(params.nfcore_modules_testdata_base_path + '/genomics/sarscov2/nanopore/fastq/test.fastq.gz', checkIfExists: true) ]
+                ])
+                input[1] = Channel.value(['genome', file("\${projectDir}/modules/amd-ph-core/hostess/tests/ref", checkIfExists: true)])
+                input[2] = 'auto'
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.errorReport.contains("HOSTESS requires aligner to be 'bowtie2' or 'minimap2'") }
+            )
+        }
+    }
 }
